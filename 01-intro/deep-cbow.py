@@ -15,9 +15,9 @@ def read_dataset(filename):
       yield ([w2i[x] for x in words.split(" ")], t2i[tag])
 
 # Read in the data
-train = list(read_dataset("data/classes/train.txt"))
+train = list(read_dataset("../data/classes/train.txt"))
 w2i = defaultdict(lambda: UNK, w2i)
-dev = list(read_dataset("data/classes/test.txt"))
+dev = list(read_dataset("../data/classes/test.txt"))
 nwords = len(w2i)
 ntags = len(t2i)
 

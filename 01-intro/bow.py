@@ -15,15 +15,15 @@ def read_dataset(filename):
       yield ([w2i[x] for x in words.split(" ")], t2i[tag])
 
 # Read in the data
-train = list(read_dataset("data/classes/train.txt"))
+train = list(read_dataset("../data/classes/train.txt"))
 w2i = defaultdict(lambda: UNK, w2i)
-dev = list(read_dataset("data/classes/test.txt"))
+dev = list(read_dataset("../data/classes/test.txt"))
 nwords = len(w2i)
 ntags = len(t2i)
 
 # Start DyNet and define trainer
 model = dy.Model()
-trainer = dy.AdamTrainer(model, 0.001)
+trainer = dy.AdamTrainer(model)
 
 # Define the model
 W_sm = model.add_lookup_parameters((nwords, ntags)) # Word weights
@@ -31,9 +31,12 @@ b_sm = model.add_parameters((ntags))                # Softmax bias
 
 # A function to calculate scores for one value
 def calc_scores(words):
+  # Create a computation graph, and add parameters
   dy.renew_cg()
-  score = dy.esum([dy.lookup(W_sm, x) for x in words])
   b_sm_exp = dy.parameter(b_sm)
+  # Take the sum of all the embedding vectors for each word
+  score = dy.esum([dy.lookup(W_sm, x) for x in words])
+  # Add the bias vector and return
   return score + b_sm_exp
 
 for ITER in range(100):
