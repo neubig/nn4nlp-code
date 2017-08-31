@@ -81,7 +81,7 @@ def generate_sent():
   hist = [S] * N
   sent = []
   while True:
-    p = dy.softmax(calc_score_of_history(hist)).npvalue()
+    p = dy.softmax(calc_score_of_histories([hist])).npvalue()
     next_word = np.random.choice(nwords, p=p/p.sum())
     if next_word == S or len(sent) == MAX_LEN:
       break
