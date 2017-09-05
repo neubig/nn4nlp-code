@@ -27,6 +27,10 @@ dev = list(read_dataset("../data/ptb/valid.txt"))
 i2w = {v: k for k, v in w2i.items()}
 nwords = len(w2i)
 
+with open(labels_location, 'w') as labels_file:
+  for i in range(nwords):
+    labels_file.write(i2w[i] + '\n')
+
 # Start DyNet and define trainer
 model = dy.Model()
 trainer = dy.SimpleSGDTrainer(model, learning_rate=0.1)
@@ -83,8 +87,8 @@ for ITER in range(100):
   print("iter %r: dev loss/word=%.4f, ppl=%.4f, time=%.2fs" % (ITER, dev_loss/dev_words, math.exp(dev_loss/dev_words), time.time()-start))
 
   print("saving embedding files")
-  with open(embeddings_location, 'w') as embeddings_file, open(labels_location, 'w') as labels_file:
+  with open(embeddings_location, 'w') as embeddings_file:
+    W_w_np = W_w_p.as_array()
     for i in range(nwords):
-      labels_file.write(i2w[i] + '\n')
-      ith_embedding = '\t'.join(map(str, W_emb[i].npvalue()))
+      ith_embedding = '\t'.join(map(str, W_w_np[i]))
       embeddings_file.write(ith_embedding + '\n')
