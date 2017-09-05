@@ -1,3 +1,7 @@
 .ipynb_checkpoints
 *.log
 *.swp
+__MACOSX
+__pycache__
+03-wordemb/*.txt
+03-wordemb/*.png
