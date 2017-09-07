@@ -1,7 +1,10 @@
 .ipynb_checkpoints
 *.log
 *.swp
+.DS_Store
 __MACOSX
 __pycache__
 03-wordemb/*.txt
 03-wordemb/*.png
+04-efficiency/*.txt
+04-efficiency/*.png
