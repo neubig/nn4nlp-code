@@ -63,7 +63,7 @@ def calc_sent_loss(sent):
   dy.renew_cg()
   
   # Get embeddings for the sentence
-  emb = [W_c_p[x] for x in sent]
+  emb = [W_w_p[x] for x in sent]
 
   # Sample K negative words for each predicted word at each position
   all_neg_words = np.random.choice(nwords, size=2*N*K*len(emb), replace=True, p=word_probabilities)
@@ -75,8 +75,8 @@ def calc_sent_loss(sent):
     neg_words = all_neg_words[i*K*2*N:(i+1)*K*2*N]
     pos_words = ([sent[x] if x >= 0 else S for x in range(i-N,i)] +
                  [sent[x] if x < len(sent) else S for x in range(i+1,i+N+1)])
-    neg_loss = -dy.log(dy.logistic(-dy.dot_product(my_emb, dy.lookup_batch(W_w_p, neg_words))))
-    pos_loss = -dy.log(dy.logistic(dy.dot_product(my_emb, dy.lookup_batch(W_w_p, pos_words))))
+    neg_loss = -dy.log(dy.logistic(-dy.dot_product(my_emb, dy.lookup_batch(W_c_p, neg_words))))
+    pos_loss = -dy.log(dy.logistic(dy.dot_product(my_emb, dy.lookup_batch(W_c_p, pos_words))))
     all_losses.append(dy.sum_batches(neg_loss) + dy.sum_batches(pos_loss))
   return dy.esum(all_losses)
 
