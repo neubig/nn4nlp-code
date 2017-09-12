@@ -28,10 +28,10 @@ trainer = dy.AdamTrainer(model)
 
 # Define the model
 EMB_SIZE = 64
-W_emb = model.add_lookup_parameters((nwords, EMB_SIZE)) # Word embeddings
+W_emb = model.add_lookup_parameters((nwords, 1, 1, EMB_SIZE)) # Word embeddings
 WIN_SIZE = 3
 FILTER_SIZE = 64
-W_cnn = model.add_parameters((WIN_SIZE, 1, EMB_SIZE, FILTER_SIZE)) # cnn weights
+W_cnn = model.add_parameters((1, WIN_SIZE, EMB_SIZE, FILTER_SIZE)) # cnn weights
 b_cnn = model.add_parameters((FILTER_SIZE)) # cnn bias
 
 W_sm = model.add_parameters((ntags, FILTER_SIZE))          # Softmax weights
@@ -43,12 +43,14 @@ def calc_scores(wids):
     b_cnn_express = dy.parameter(b_cnn)
     W_sm_express = dy.parameter(W_sm)
     b_sm_express = dy.parameter(b_sm)
+    if len(wids) < WIN_SIZE:
+        wids += [0] * (WIN_SIZE-len(wids))
 
     cnn_in = dy.concatenate([dy.lookup(W_emb, x) for x in wids], d=1)
-    cnn_in = dy.reshape(cnn_in, (len(wids), 1, EMB_SIZE))
     cnn_out = dy.conv2d_bias(cnn_in, W_cnn_express, b_cnn_express, stride=(1, 1), is_valid=False)
-    pool_out = dy.maxpooling2d(cnn_out, (len(wids), 1), (1, 1), is_valid=True)
+    pool_out = dy.max_dim(cnn_out, d=1)
     pool_out = dy.reshape(pool_out, (FILTER_SIZE,))
+    pool_out = dy.rectify(pool_out)
     return W_sm_express * pool_out + b_sm_express
 
 def calc_predict_and_activations(wids):
@@ -57,15 +59,17 @@ def calc_predict_and_activations(wids):
     b_cnn_express = dy.parameter(b_cnn)
     W_sm_express = dy.parameter(W_sm)
     b_sm_express = dy.parameter(b_sm)
+    if len(wids) < WIN_SIZE:
+        wids += [0] * (WIN_SIZE-len(wids))
 
     cnn_in = dy.concatenate([dy.lookup(W_emb, x) for x in wids], d=1)
-    cnn_in = dy.reshape(cnn_in, (len(wids), 1, EMB_SIZE))
     cnn_out = dy.conv2d_bias(cnn_in, W_cnn_express, b_cnn_express, stride=(1, 1), is_valid=False)
     filters = (dy.reshape(cnn_out, (len(wids), FILTER_SIZE))).npvalue()
     activations = filters.argmax(axis=0)
 
-    pool_out = dy.maxpooling2d(cnn_out, (len(wids), 1), (1, 1), is_valid=True)
+    pool_out = dy.max_dim(cnn_out, d=1)
     pool_out = dy.reshape(pool_out, (FILTER_SIZE,))
+    pool_out = dy.rectify(pool_out)
     scores = (W_sm_express * pool_out + b_sm_express).npvalue()
     return np.argmax(scores), activations
 
