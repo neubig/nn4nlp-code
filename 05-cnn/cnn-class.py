@@ -43,11 +43,7 @@ def calc_scores(words):
     W_sm_express = dy.parameter(W_sm)
     b_sm_express = dy.parameter(b_sm)
     if len(words) < WIN_SIZE:
-<<<<<<< HEAD
       words += [0] * (WIN_SIZE-len(words))
-=======
-      words += [0] * (WIN_SIZE-len(words))
->>>>>>> 0eff2e467ab3b6d1a4667bac7c29285f03639363
 
     cnn_in = dy.concatenate([dy.lookup(W_emb, x) for x in words], d=1)
     cnn_out = dy.conv2d_bias(cnn_in, W_cnn_express, b_cnn_express, stride=(1, 1), is_valid=False)
