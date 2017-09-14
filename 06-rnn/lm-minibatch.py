@@ -84,7 +84,7 @@ def calc_lm_loss(sents):
     for wid, mask in zip(wids, masks):
         # calculate the softmax and loss
         score = dy.affine_transform([b_exp, W_exp, s.output()])
-        loss = dy.hinge_batch(score, wid)
+        loss = dy.pickneglogsoftmax_batch(score, wid)
         # mask the loss if at least one sentence is shorter
         if mask[-1] != 1:
             mask_expr = dy.inputVector(mask)
@@ -110,7 +110,7 @@ print("startup time: %r" % (time.time() - start))
 start = time.time()
 i = all_time = dev_time = all_tagged = this_words = this_loss = 0
 for ITER in range(100):
-    # random.shuffle(train_order)
+    random.shuffle(train_order)
     for sid in train_order:
         i += 1
         if i % int(500 / MB_SIZE) == 0:
