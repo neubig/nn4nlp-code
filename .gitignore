@@ -8,6 +8,7 @@ __pycache__
 03-wordemb/*.png
 04-efficiency/*.txt
 04-efficiency/*.png
+09-attention/*.png
 
 .idea/
 *.iml
