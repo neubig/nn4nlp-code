@@ -69,8 +69,7 @@ def calc_scores(words):
     word_reps = LSTM.transduce([LOOKUP[x] for x in words])
 
     # Softmax scores
-    W = dy.parameter(W_sm)
-    b = dy.parameter(b_sm)
+    W, b = dy.parameter(W_sm, b_sm)
     scores = [dy.affine_transform([b, W, x]) for x in word_reps]
 
     return scores
