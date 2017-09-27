@@ -14,19 +14,22 @@ parser = argparse.ArgumentParser(description='BiLSTM variants.')
 parser.add_argument('--teacher', action='store_true')
 parser.add_argument('--perceptron', action='store_true')
 parser.add_argument('--cost', action='store_true')
-parser.add_argument('--margin', action='store_true')
+parser.add_argument('--hinge', action='store_true')
+parser.add_argument('--schedule', action='store_true')
 
 args = parser.parse_args()
 use_teacher_forcing = args.teacher
 use_structure_perceptron = args.perceptron
 use_cost_augmented = args.cost
-use_margin = args.margin
+use_hinge = args.hinge
+use_schedule = args.schedule
 
-print("Training BiLSTM %s teacher forcing, %s structured perceptron loss, %s augmented cost, %s margin."
+print("Training BiLSTM %s teacher forcing (%s schedule), %s structured perceptron loss, %s augmented cost, %s margin."
       % ("with" if use_teacher_forcing else "without",
+         "with" if use_schedule else "without",
          "with" if use_structure_perceptron else "without",
          "with" if use_cost_augmented else "without",
-         "with" if use_margin else "without"
+         "with" if use_hinge else "without"
          )
       )
 
@@ -50,6 +53,37 @@ def read(fname):
                 words.append(w2i[w])
                 tags.append(t2i[t])
             yield (words, tags)
+
+        class AlwaysTrueSampler:
+            def sample_true(self):
+                return True
+
+            def decay(self):
+                pass
+
+        class ScheduleSampler:
+            def __init__(self, start_rate=1, min_rate=0.2, decay_rate=0.1):
+                self.min_rate = min_rate
+                self.iter = 0
+                self.decay_rate = decay_rate
+                self.start_rate = start_rate
+                self.reach_min = False
+                self.sample_rate = start_rate
+
+            def decay_func(self):
+                if not self.reach_min:
+                    self.sample_rate = self.start_rate - self.iter * self.decay_rate
+                    if self.sample_rate < self.min_rate:
+                        self.reach_min = True
+                        self.sample_rate = self.min_rate
+
+            def decay(self):
+                self.iter += 1
+                self.decay_func()
+                print("Sample rate is now %.2f" % self.sample_rate)
+
+            def sample_true(self):
+                return random.random() < self.sample_rate
 
 
 # Read the data
@@ -80,6 +114,11 @@ LOOKUP = model.add_lookup_parameters((nwords, EMBED_SIZE))
 if use_teacher_forcing:
     TAG_LOOKUP = model.add_lookup_parameters((ntags, TAG_EMBED_SIZE))
 
+if use_schedule:
+    sampler = ScheduleSampler()
+else:
+    sampler = AlwaysTrueSampler()
+
 # Word-level BiLSTM is just a composition of two LSTMs.
 if use_teacher_forcing:
     fwdLSTM = dy.SimpleRNNBuilder(1, EMBED_SIZE + TAG_EMBED_SIZE, HIDDEN_SIZE / 2, model)  # Forward LSTM
@@ -105,33 +144,6 @@ def calc_scores(words):
     fwd_word_reps = fwd_init.transduce(word_embs)
     bwd_init = bwdLSTM.initial_state()
     bwd_word_reps = bwd_init.transduce(reversed(word_embs))
-
-    combined_word_reps = [dy.concatenate([f, b]) for f, b in zip(fwd_word_reps, reversed(bwd_word_reps))]
-
-    # Softmax scores
-    W = dy.parameter(W_sm)
-    b = dy.parameter(b_sm)
-    scores = [dy.affine_transform([b, W, x]) for x in combined_word_reps]
-
-    return scores
-
-
-def calc_scores_with_tags(words, tags):
-    dy.renew_cg()
-
-    last_tags = [start_tag] + tags[:-1]
-
-    word_embs = [LOOKUP[x] for x in words]
-    tag_embs = [TAG_LOOKUP[x] for x in last_tags]
-
-    fwd_input_embs = [dy.concatenate([w, t]) for w, t in zip(word_embs, tag_embs)]
-
-    # Transduce all batch elements with an LSTM
-    fwd_init = fwdLSTM.initial_state()
-    fwd_word_reps = fwd_init.transduce(fwd_input_embs)  # NOTE: We use the concatenated embeddings for the forward LSTM.
-
-    bwd_init = bwdLSTM.initial_state()
-    bwd_word_reps = bwd_init.transduce(reversed(word_embs))  # We use only word embeddings for the backward LSTM.
 
     combined_word_reps = [dy.concatenate([f, b]) for f, b in zip(fwd_word_reps, reversed(bwd_word_reps))]
 
@@ -170,10 +182,13 @@ def calc_scores_with_previous_tag(words, tags=None):
         s_fwd = s_fwd.add_input(fwd_input)
         combined_rep = dy.concatenate([s_fwd.output(), bwd_word_rep])
         score = dy.affine_transform([b, W, combined_rep])
-        prediction = np.argmax(score)
+        prediction = np.argmax(score.npvalue())
 
         if tags:
-            prev_tag = tags[index]
+            if sampler.sample_true():
+                prev_tag = tags[index]
+            else:
+                prev_tag = prediction
             index += 1
         else:
             prev_tag = prediction
@@ -206,7 +221,7 @@ def perceptron_loss(scores, reference):
         else:
             loss = prediction_score - reference_score
 
-        if use_margin:
+        if use_hinge:
             loss = dy.emax([dy.scalarInput(0), loss - margin])
 
         return loss
@@ -256,7 +271,8 @@ for ITER in range(100):
         this_words += len(words)
         loss_exp.backward()
         trainer.update()
-    # Perform evaluation 
+    sampler.decay()
+    # Perform evaluation
     start = time.time()
     this_sents = this_words = this_loss = this_correct = 0
     for words, tags in dev:
