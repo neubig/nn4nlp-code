@@ -13,17 +13,21 @@ import numpy as np
 parser = argparse.ArgumentParser(description='BiLSTM variants.')
 parser.add_argument('--teacher', action='store_true')
 parser.add_argument('--perceptron', action='store_true')
-parser.add_argument('--hinge', action='store_true')
+parser.add_argument('--cost', action='store_true')
+parser.add_argument('--margin', action='store_true')
 
 args = parser.parse_args()
 use_teacher_forcing = args.teacher
 use_structure_perceptron = args.perceptron
-use_hinge = args.hinge
+use_cost_augmented = args.cost
+use_margin = args.margin
 
-print("Training BiLSTM %s teacher forcing, %s structured perceptron loss, %s margin."
+print("Training BiLSTM %s teacher forcing, %s structured perceptron loss, %s augmented cost, %s margin."
       % ("with" if use_teacher_forcing else "without",
          "with" if use_structure_perceptron else "without",
-         "with" if use_hinge else "without")
+         "with" if use_cost_augmented else "without",
+         "with" if use_margin else "without"
+         )
       )
 
 # format of files: each line is "word1|tag1 word2|tag2 ..."
@@ -120,14 +124,14 @@ def calc_scores_with_tags(words, tags):
     word_embs = [LOOKUP[x] for x in words]
     tag_embs = [TAG_LOOKUP[x] for x in last_tags]
 
-    input_embs = [dy.concatenate([w, t]) for w, t in zip(word_embs, tag_embs)]
+    fwd_input_embs = [dy.concatenate([w, t]) for w, t in zip(word_embs, tag_embs)]
 
     # Transduce all batch elements with an LSTM
     fwd_init = fwdLSTM.initial_state()
-    fwd_word_reps = fwd_init.transduce(input_embs)  # NOTE: We use the concatenated embeddings for the forward LSTM.
+    fwd_word_reps = fwd_init.transduce(fwd_input_embs)  # NOTE: We use the concatenated embeddings for the forward LSTM.
 
     bwd_init = bwdLSTM.initial_state()
-    bwd_word_reps = bwd_init.transduce(reversed(word_embs))  # We use the original embeddings for the backward LSTM.
+    bwd_word_reps = bwd_init.transduce(reversed(word_embs))  # We use only word embeddings for the backward LSTM.
 
     combined_word_reps = [dy.concatenate([f, b]) for f, b in zip(fwd_word_reps, reversed(bwd_word_reps))]
 
@@ -139,7 +143,7 @@ def calc_scores_with_tags(words, tags):
     return scores
 
 
-def calc_scores_with_previous_tag(words):
+def calc_scores_with_previous_tag(words, tags=None):
     dy.renew_cg()
 
     word_embs = [LOOKUP[x] for x in words]
@@ -156,7 +160,10 @@ def calc_scores_with_previous_tag(words):
     # Transduce one by one for the forward LSTM
     fwd_init = fwdLSTM.initial_state()
     s_fwd = fwd_init
+
     prev_tag = start_tag
+
+    index = 0
     for word, bwd_word_rep in zip(word_embs, reversed(bwd_word_reps)):
         # Concatenate word and tag representation just as training.
         fwd_input = dy.concatenate([word, TAG_LOOKUP[prev_tag]])
@@ -164,16 +171,59 @@ def calc_scores_with_previous_tag(words):
         combined_rep = dy.concatenate([s_fwd.output(), bwd_word_rep])
         score = dy.affine_transform([b, W, combined_rep])
         prediction = np.argmax(score)
-        prev_tag = prediction
+
+        if tags:
+            prev_tag = tags[index]
+            index += 1
+        else:
+            prev_tag = prediction
+
         scores.append(score)
 
     return scores
 
 
-# Calculate MLE loss for one example
-def calc_loss(scores, tags):
+def mle(scores, tags):
     losses = [dy.pickneglogsoftmax(score, tag) for score, tag in zip(scores, tags)]
     return dy.esum(losses)
+
+
+def hamming_cost(predictions, reference):
+    return sum(p != r for p, r in zip(predictions, reference))
+
+
+def perceptron_loss(scores, reference):
+    predictions = [np.argmax(score.npvalue()) for score in scores]
+
+    margin = dy.scalarInput(-2)
+
+    if predictions != reference:
+        reference_score = calc_sequence_score(scores, reference)
+        prediction_score = calc_sequence_score(scores, predictions)
+        if use_cost_augmented:
+            hamming = dy.scalarInput(hamming_cost(predictions, reference))
+            loss = prediction_score + hamming - reference_score
+        else:
+            loss = prediction_score - reference_score
+
+        if use_margin:
+            loss = dy.emax([dy.scalarInput(0), loss - margin])
+
+        return loss
+    else:
+        return dy.scalarInput(0)
+
+
+def calc_sequence_score(scores, tags):
+    return dy.esum([score[tag] for score, tag in zip(scores, tags)])
+
+
+# Calculate MLE loss for one example
+def calc_loss(scores, tags):
+    if use_structure_perceptron:
+        return perceptron_loss(scores, tags)
+    else:
+        return mle(scores, tags)
 
 
 # Calculate number of tags correct for one example
@@ -195,12 +245,11 @@ for ITER in range(100):
                   file=sys.stderr)
         # train on the example
         words, tags = train[sid]
-
+        # choose whether to use teacher forcing
         if use_teacher_forcing:
-            scores = calc_scores_with_tags(words, tags)
+            scores = calc_scores_with_previous_tag(words, tags)
         else:
             scores = calc_scores(words)
-
         loss_exp = calc_loss(scores, tags)
         this_correct += calc_correct(scores, tags)
         this_loss += loss_exp.scalar_value()
@@ -212,12 +261,11 @@ for ITER in range(100):
     this_sents = this_words = this_loss = this_correct = 0
     for words, tags in dev:
         this_sents += 1
-
+        # choose whether to use teacher forcing
         if use_teacher_forcing:
             scores = calc_scores_with_previous_tag(words)
         else:
             scores = calc_scores(words)
-
         loss_exp = calc_loss(scores, tags)
         this_correct += calc_correct(scores, tags)
         this_loss += loss_exp.scalar_value()
