@@ -50,11 +50,14 @@ trainer = dy.AdamTrainer(model)
 EMBED_SIZE = 64
 HIDDEN_SIZE = 128
 
+assert HIDDEN_SIZE % 2 == 0
+
 # Lookup parameters for word embeddings
 LOOKUP = model.add_lookup_parameters((nwords, EMBED_SIZE))
 
 # Word-level BiLSTM
-LSTM = dy.BiRNNBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model, dy.LSTMBuilder)
+fwdLSTM = dy.SimpleRNNBuilder(1, EMBED_SIZE, HIDDEN_SIZE / 2, model)  # Forward LSTM
+bwdLSTM = dy.SimpleRNNBuilder(1, EMBED_SIZE, HIDDEN_SIZE / 2, model)  # Backward LSTM
 
 # Word-level softmax
 W_sm = model.add_parameters((ntags, HIDDEN_SIZE))
@@ -65,12 +68,20 @@ b_sm = model.add_parameters(ntags)
 def calc_scores(words):
     dy.renew_cg()
 
+    word_embs = [LOOKUP[x] for x in words]
+
     # Transduce all batch elements with an LSTM
-    word_reps = LSTM.transduce([LOOKUP[x] for x in words])
+    fwd_init = fwdLSTM.initial_state()
+    fwd_word_reps = fwd_init.transduce(word_embs)
+    bwd_init = bwdLSTM.initial_state()
+    bwd_word_reps = bwd_init.transduce(reversed(word_embs))
+
+    combined_word_reps = [dy.concatenate([f, b]) for f, b in zip(fwd_word_reps, reversed(bwd_word_reps))]
 
     # Softmax scores
-    W, b = dy.parameter(W_sm, b_sm)
-    scores = [dy.affine_transform([b, W, x]) for x in word_reps]
+    W = dy.parameter(W_sm)
+    b = dy.parameter(b_sm)
+    scores = [dy.affine_transform([b, W, x]) for x in combined_word_reps]
 
     return scores
 
