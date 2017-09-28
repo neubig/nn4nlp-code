@@ -17,6 +17,7 @@ dev_file = "../data/tags/dev.txt"
 w2i = defaultdict(lambda: len(w2i))
 t2i = defaultdict(lambda: len(t2i))
 
+
 def read(fname):
     """
     Read tagged file
@@ -29,6 +30,7 @@ def read(fname):
                 words.append(w2i[w])
                 tags.append(t2i[t])
             yield (words, tags)
+
 
 # Read the data
 train = list(read(train_file))
@@ -58,6 +60,7 @@ LSTM = dy.BiRNNBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model, dy.LSTMBuilder)
 W_sm = model.add_parameters((ntags, HIDDEN_SIZE))
 b_sm = model.add_parameters(ntags)
 
+
 # Calculate the scores for one example
 def calc_scores(words):
     dy.renew_cg()
@@ -66,20 +69,24 @@ def calc_scores(words):
     word_reps = LSTM.transduce([LOOKUP[x] for x in words])
 
     # Softmax scores
-    W, b = dy.parameter(W_sm, b_sm)
+    W = dy.parameter(W_sm)
+    b = dy.parameter(b_sm)
     scores = [dy.affine_transform([b, W, x]) for x in word_reps]
 
     return scores
+
 
 # Calculate MLE loss for one example
 def calc_loss(scores, tags):
     losses = [dy.pickneglogsoftmax(score, tag) for score, tag in zip(scores, tags)]
     return dy.esum(losses)
 
+
 # Calculate number of tags correct for one example
 def calc_correct(scores, tags):
     correct = [np.argmax(score.npvalue()) == tag for score, tag in zip(scores, tags)]
     return sum(correct)
+
 
 # Perform training
 for ITER in range(100):
@@ -89,7 +96,9 @@ for ITER in range(100):
     for sid in range(0, len(train)):
         this_sents += 1
         if this_sents % int(1000) == 0:
-            print("train loss/word=%.4f, acc=%.2f%%, word/sec=%.4f" % (this_loss / this_words, 100*this_correct/this_words, this_words / (time.time() - start)), file=sys.stderr)
+            print("train loss/word=%.4f, acc=%.2f%%, word/sec=%.4f" % (
+                this_loss / this_words, 100 * this_correct / this_words, this_words / (time.time() - start)),
+                  file=sys.stderr)
         # train on the example
         words, tags = train[sid]
         scores = calc_scores(words)
@@ -109,4 +118,5 @@ for ITER in range(100):
         this_correct += calc_correct(scores, tags)
         this_loss += loss_exp.scalar_value()
         this_words += len(words)
-    print("dev loss/word=%.4f, acc=%.2f%%, word/sec=%.4f" % (this_loss / this_words, 100*this_correct/this_words, this_words / (time.time() - start)), file=sys.stderr)
+    print("dev loss/word=%.4f, acc=%.2f%%, word/sec=%.4f" % (
+        this_loss / this_words, 100 * this_correct / this_words, this_words / (time.time() - start)), file=sys.stderr)
