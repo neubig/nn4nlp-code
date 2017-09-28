@@ -233,6 +233,12 @@ def calc_sequence_score(scores, tags):
 
 
 def hamming_augmented_decode(scores, reference):
+    """
+    Local decoding with hamming cost.
+    :param scores: Local decoding scores.
+    :param reference: Referent tag result.
+    :return:
+    """
     augmented_result = []
     for score, referent_tag in zip(scores, reference):
         origin_scores = score.npvalue()
@@ -254,6 +260,8 @@ def perceptron_loss(scores, reference):
         reference_score = calc_sequence_score(scores, reference)
         prediction_score = calc_sequence_score(scores, predictions)
         if use_cost_augmented:
+            # One could actually get the hamming augmented value during decoding, but we didn't do it here for
+            # demonstration purpose.
             hamming = dy.scalarInput(hamming_cost(predictions, reference))
             loss = prediction_score + hamming - reference_score
         else:
