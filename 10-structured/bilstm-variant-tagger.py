@@ -232,8 +232,21 @@ def calc_sequence_score(scores, tags):
     return dy.esum([score[tag] for score, tag in zip(scores, tags)])
 
 
+def hamming_augmented_decode(scores, reference):
+    augmented_result = []
+    for score, referent_tag in zip(scores, reference):
+        origin_scores = score.npvalue()
+        cost = np.ones(origin_scores.shape)
+        cost[referent_tag] = 0
+        augmented_result.append(np.argmax(np.add(origin_scores, cost)))
+    return augmented_result
+
+
 def perceptron_loss(scores, reference):
-    predictions = [np.argmax(score.npvalue()) for score in scores]
+    if use_cost_augmented:
+        predictions = hamming_augmented_decode(scores, reference)
+    else:
+        predictions = [np.argmax(score.npvalue()) for score in scores]
 
     margin = dy.scalarInput(-2)
 
