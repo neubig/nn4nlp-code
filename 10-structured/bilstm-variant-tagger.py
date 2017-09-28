@@ -3,7 +3,6 @@ import time
 
 from collections import defaultdict
 import random
-import math
 import sys
 import argparse
 
@@ -54,36 +53,46 @@ def read(fname):
                 tags.append(t2i[t])
             yield (words, tags)
 
-        class AlwaysTrueSampler:
-            def sample_true(self):
-                return True
 
-            def decay(self):
-                pass
+class AlwaysTrueSampler:
+    """
+    An always true sampler, only sample fromtrue distribution.
+    """
 
-        class ScheduleSampler:
-            def __init__(self, start_rate=1, min_rate=0.2, decay_rate=0.1):
-                self.min_rate = min_rate
-                self.iter = 0
-                self.decay_rate = decay_rate
-                self.start_rate = start_rate
-                self.reach_min = False
-                self.sample_rate = start_rate
+    def sample_true(self):
+        return True
 
-            def decay_func(self):
-                if not self.reach_min:
-                    self.sample_rate = self.start_rate - self.iter * self.decay_rate
-                    if self.sample_rate < self.min_rate:
-                        self.reach_min = True
-                        self.sample_rate = self.min_rate
+    def decay(self):
+        pass
 
-            def decay(self):
-                self.iter += 1
-                self.decay_func()
-                print("Sample rate is now %.2f" % self.sample_rate)
 
-            def sample_true(self):
-                return random.random() < self.sample_rate
+class ScheduleSampler:
+    """
+    A linear schedule sampler.
+    """
+
+    def __init__(self, start_rate=1, min_rate=0.2, decay_rate=0.1):
+        self.min_rate = min_rate
+        self.iter = 0
+        self.decay_rate = decay_rate
+        self.start_rate = start_rate
+        self.reach_min = False
+        self.sample_rate = start_rate
+
+    def decay_func(self):
+        if not self.reach_min:
+            self.sample_rate = self.start_rate - self.iter * self.decay_rate
+            if self.sample_rate < self.min_rate:
+                self.reach_min = True
+                self.sample_rate = self.min_rate
+
+    def decay(self):
+        self.iter += 1
+        self.decay_func()
+        print("Sample rate is now %.2f" % self.sample_rate)
+
+    def sample_true(self):
+        return random.random() < self.sample_rate
 
 
 # Read the data
@@ -135,6 +144,11 @@ b_sm = model.add_parameters(ntags)
 
 # Calculate the scores for one example
 def calc_scores(words):
+    """
+    Calculate scores using BiLSTM.
+    :param words:
+    :return:
+    """
     dy.renew_cg()
 
     word_embs = [LOOKUP[x] for x in words]
@@ -155,7 +169,14 @@ def calc_scores(words):
     return scores
 
 
-def calc_scores_with_previous_tag(words, tags=None):
+def calc_scores_with_previous_tag(words, referent_tags=None):
+    """
+    Calculate scores using previous tag as input. If the referent tags are provided, then we will sample from previous
+    referent tag or previous system prediction.
+    :param words:
+    :param referent_tags:
+    :return:
+    """
     dy.renew_cg()
 
     word_embs = [LOOKUP[x] for x in words]
@@ -184,9 +205,9 @@ def calc_scores_with_previous_tag(words, tags=None):
         score = dy.affine_transform([b, W, combined_rep])
         prediction = np.argmax(score.npvalue())
 
-        if tags:
+        if referent_tags:
             if sampler.sample_true():
-                prev_tag = tags[index]
+                prev_tag = referent_tags[index]
             else:
                 prev_tag = prediction
             index += 1
@@ -205,6 +226,10 @@ def mle(scores, tags):
 
 def hamming_cost(predictions, reference):
     return sum(p != r for p, r in zip(predictions, reference))
+
+
+def calc_sequence_score(scores, tags):
+    return dy.esum([score[tag] for score, tag in zip(scores, tags)])
 
 
 def perceptron_loss(scores, reference):
@@ -227,10 +252,6 @@ def perceptron_loss(scores, reference):
         return loss
     else:
         return dy.scalarInput(0)
-
-
-def calc_sequence_score(scores, tags):
-    return dy.esum([score[tag] for score, tag in zip(scores, tags)])
 
 
 # Calculate MLE loss for one example
@@ -271,6 +292,7 @@ for ITER in range(100):
         this_words += len(words)
         loss_exp.backward()
         trainer.update()
+    # Decay the schedule sampler if using schedule sampling.
     sampler.decay()
     # Perform evaluation
     start = time.time()
