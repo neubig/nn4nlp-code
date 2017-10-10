@@ -105,3 +105,4 @@ def _find_cycle(vertices, edges):
             _strongconnect(v)
 
     return [SCC for SCC in _SCCs if len(SCC) > 1]
+

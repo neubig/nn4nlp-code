@@ -37,11 +37,11 @@ class DeepBiaffineAttentionDecoder(object):
         self.b_label_hidden_to_dep = model.add_parameters((n_label_mlp_units,))
 
         self.U_arc_1 = model.add_parameters((n_arc_mlp_units, n_arc_mlp_units))
-        self.u_arc_2 = model.add_parameters((n_arc_mlp_units,))
+        self.u_arc_2 = model.add_parameters((n_arc_mlp_units))
 
         self.U_label_1 = [model.add_parameters((n_label_mlp_units, n_label_mlp_units)) for _ in range(n_labels)]
-        self.u_label_2_2 = [model.add_parameters((n_label_mlp_units,)) for _ in range(n_labels)]
-        self.u_label_2_1 = [model.add_parameters((1, n_label_mlp_units)) for _ in range(n_labels)]
+        self.u_label_2_2 = [model.add_parameters((1, n_label_mlp_units)) for _ in range(n_labels)]
+        self.u_label_2_1 = [model.add_parameters((n_label_mlp_units, 1)) for _ in range(n_labels)]
         self.b_label = [model.add_parameters((1,)) for _ in range(n_labels)]
 
     def cal_scores(self, src_encodings):
@@ -80,8 +80,6 @@ class DeepBiaffineAttentionDecoder(object):
         s_label = []
         for U_1, u_2_1, u_2_2, b in zip(U_label_1, u_label_2_1, u_label_2_2, b_label):
             e1 = h_label_head_transpose * U_1 * h_label_dep
-            print(h_label_head_transpose.dim())
-            print(u_2_1.dim())
             e2 = h_label_head_transpose * u_2_1 * dy.ones((1, src_len))
             e3 = dy.ones((src_len, 1)) * u_2_2 * h_label_dep
             s_label.append(e1 + e2 + e3 + b)
@@ -135,8 +133,8 @@ class DeepBiaffineAttentionDecoder(object):
         return pred_heads, pred_labels
 
     def cal_accuracy(self, pred_head, pred_labels, true_head, true_labels):
-        head_acc = np.sum(np.equal(pred_head, true_head)) / len(pred_labels)
+        head_acc = np.sum(np.equal(pred_head, true_head)).astype(np.float32) / len(pred_labels)
 
-        label_acc = np.sum(np.equal(pred_labels, true_labels)) / len(pred_head)
+        label_acc = np.sum(np.equal(pred_head, true_head) * np.equal(pred_labels, true_labels)).astype(np.float32) / len(pred_head)
 
         return head_acc, label_acc

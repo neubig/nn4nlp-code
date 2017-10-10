@@ -31,7 +31,7 @@ def read(fname):
                 sent.append(w2i[tokens[3 * i]])
                 labels.append(t2i[tokens[3 * i + 1]])
                 heads.append(int(tokens[3 * i + 2]))
-                yield (sent, labels, heads)
+            yield (sent, labels, heads)
 
 
 train = list(read(train_file))
@@ -75,7 +75,7 @@ def calc_acc(words, labels, heads):
     bwd_embs = bwd_init.transduce(reversed(word_embs))
     src_encodings = [dy.reshape(dy.concatenate([f, b]), (HID_SIZE * 2, 1)) for f, b in zip(fwd_embs, reversed(bwd_embs))]
     pred_heads, pred_labels = biaffineParser.decoding(src_encodings)
-    return biaffineParser.cal_accuracy(pred_heads, pred_labels, [heads], [labels])
+    return biaffineParser.cal_accuracy(pred_heads, pred_labels, heads, labels)
 
 for ITER in range(100):
     # Perform training
@@ -94,9 +94,10 @@ for ITER in range(100):
     correct_labels = 0.
     total = 0.
     for words, labels, heads in dev:
-        head_acc, label_acc = calc_loss(words, labels, heads)
+        head_acc, label_acc = calc_acc(words, labels, heads)
         correct_heads += head_acc * len(words)
         correct_labels += label_acc * len(words)
         total += len(words)
-    print("iter %r: test head_acc=%.4f, label_acc=%.4f" % (ITER, correct_heads / total, correct_labels / total))
+    print("iter %r: test head_acc=%.4f, label_acc=%.4f" % (ITER, correct_heads * 100 / total,
+                                                           correct_labels * 100 / total))
 
