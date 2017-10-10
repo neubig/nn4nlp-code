@@ -10,5 +10,7 @@ __pycache__
 04-efficiency/*.png
 09-attention/*.png
 
+*.pyc
+
 .idea/
 *.iml
