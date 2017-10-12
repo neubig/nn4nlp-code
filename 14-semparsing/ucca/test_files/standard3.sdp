@@ -1,0 +1,15 @@
+1	1	_	Word	-	+	_	_	L	_	_
+2	2	_	Word	-	-	_	E	_	_	_
+3	3	_	Word	-	+	_	_	_	_	_
+4	4	_	Word	-	-	_	_	Terminal	_	_
+5	.	_	Punctuation	-	-	_	_	U	_	_
+6	6	_	Word	-	-	_	_	_	E	_
+7	7	_	Word	-	+	_	_	_	_	A
+8	8	_	Word	-	+	_	_	H	_	_
+9	9	_	Word	-	-	_	_	_	Terminal	_
+10	10	_	Word	-	-	_	_	F	_	D*
+11	.	_	Punctuation	-	-	_	_	U	_	_
+12	12	_	Word	-	-	_	_	H	_	_
+13	13	_	Word	-	-	_	_	H	_	_
+14	14	_	Word	-	-	_	_	H	_	_
+15	15	_	Word	-	-	_	_	L	_	_
