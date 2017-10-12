@@ -1,0 +1,14 @@
+environment:
+  matrix:
+    - PYTHON: "C:\\Python35\\python.exe"
+    - PYTHON: "C:\\Python36\\python.exe"
+
+install:
+  - "%PYTHON% -m pip install -U pip wheel"
+  - "%PYTHON% setup.py install"
+  - "%PYTHON% -m spacy download en"
+
+build: off
+
+test_script:
+  - "%PYTHON% -m unittest discover -v"

@@ -1,0 +1,100 @@
+﻿<root schemeVersion="1.0.4">
+	<unitGroups>
+		<unit type="Participant" id="67" unanalyzable="false" uncertain="false"></unit>
+		<unit type="Center" id="63" unanalyzable="false" uncertain="false"></unit>
+	</unitGroups>
+	<units passageID="120">
+		<unit type="To Be Defined" id="0" unanalyzable="false" uncertain="false">
+			<unit type="To Be Defined" id="1" unanalyzable="false" uncertain="false">
+				<unit type="Linker" id="59" remarks="&quot;remark&quot;" unanalyzable="false" uncertain="false">
+					<unit type="Center" id="60" unanalyzable="false" uncertain="false">
+						<unit type="To Be Defined" id="3" unanalyzable="false" uncertain="false">
+							<word id="2">1</word>
+						</unit>
+					</unit>
+					<unit type="Elaborator" id="61" unanalyzable="false" uncertain="false">
+						<unit type="To Be Defined" id="5" unanalyzable="false" uncertain="false">
+							<word id="4">2</word>
+						</unit>
+					</unit>
+				</unit>
+				<unit type="Linked U" id="34" unanalyzable="false" uncertain="true">
+					<unit type="To Be Defined" id="7" unanalyzable="false" uncertain="false">
+						<word id="6">3</word>
+					</unit>
+					<unit type="To Be Defined" id="9" unanalyzable="false" uncertain="false">
+						<word id="8">4</word>
+					</unit>
+					<unit type="Punctuation" id="11" unanalyzable="false" uncertain="false">
+						<word id="10">.</word>
+					</unit>
+				</unit>
+			</unit>
+			<unit type="To Be Defined" id="12" unanalyzable="false" uncertain="false">
+				<unit type="Linked U" id="71" unanalyzable="false" uncertain="false">
+					<remoteUnit id="69" type="aDverbial"></remoteUnit>
+					<unit type="To Be Defined" id="66" unitGroupID="67" unanalyzable="false" uncertain="false">
+						<unit type="Elaborator" id="65" unanalyzable="false" uncertain="false">
+							<unit type="To Be Defined" id="14" unanalyzable="false" uncertain="false">
+								<word id="13">6</word>
+							</unit>
+						</unit>
+						<unit type="To Be Defined" id="62" unitGroupID="63" unanalyzable="false" uncertain="false">
+							<unit type="To Be Defined" id="16" unanalyzable="false" uncertain="false">
+								<word id="15">7</word>
+							</unit>
+						</unit>
+					</unit>
+					<unit type="Process" id="70" unanalyzable="false" uncertain="false">
+						<unit type="To Be Defined" id="18" unanalyzable="false" uncertain="false">
+							<word id="17">8</word>
+						</unit>
+					</unit>
+					<unit type="To Be Defined" id="68" unitGroupID="67" unanalyzable="false" uncertain="false">
+						<unit type="To Be Defined" id="64" unitGroupID="63" unanalyzable="false" uncertain="false">
+							<unit type="To Be Defined" id="20" unanalyzable="false" uncertain="false">
+								<word id="19">9</word>
+							</unit>
+						</unit>
+					</unit>
+				</unit>
+				<unit type="Function" id="69" unanalyzable="false" uncertain="false">
+					<unit type="To Be Defined" id="22" unanalyzable="false" uncertain="false">
+						<word id="21">10</word>
+					</unit>
+				</unit>
+				<unit type="Punctuation" id="24" unanalyzable="false" uncertain="false">
+					<word id="23">.</word>
+				</unit>
+			</unit>
+			<unit type="To Be Defined" id="25" unanalyzable="false" uncertain="false">
+				<unit type="Linked U" id="74" unanalyzable="false" uncertain="false">
+					<unit type="To Be Defined" id="27" unanalyzable="false" uncertain="false">
+						<word id="26">12</word>
+					</unit>
+				</unit>
+				<unit type="Linked U" id="75" unanalyzable="false" uncertain="false">
+					<unit type="To Be Defined" id="29" unanalyzable="false" uncertain="false">
+						<word id="28">13</word>
+					</unit>
+				</unit>
+				<unit type="Linked U" id="76" unanalyzable="false" uncertain="false">
+					<unit type="To Be Defined" id="31" unanalyzable="false" uncertain="false">
+						<word id="30">14</word>
+					</unit>
+				</unit>
+				<unit type="Linker" id="77" unanalyzable="false" uncertain="false">
+					<linkage args="74,75,76"></linkage>
+					<implicitUnit id="78" type="Center"></implicitUnit>
+					<unit type="Elaborator" id="79" unanalyzable="false" uncertain="false">
+            <unit type="To Be Defined" id="33" unanalyzable="false" uncertain="false">
+              <word id="32">15</word>
+            </unit>
+					</unit>
+				</unit>
+			</unit>
+		</unit>
+	</units>
+	<LRUunits></LRUunits>
+	<hiddenUnits></hiddenUnits>
+</root>

@@ -1,0 +1,25 @@
+sudo: false
+language: python
+python: "3.6"
+addons:
+  apt:
+    packages:
+      - pandoc
+install:
+- python setup.py install
+- python -m spacy download en
+env:
+  global:
+    - TWINE_USERNAME=danielh
+    - secure: QrZ/47sh/8WeeTLU37yfhW94bwO2ocsbMMIRebSS9Y+FssrCi9IbSuTp6NliXlJq17rozGtEf9alu9JetE8hnivACGJm0cz2/j3oYaeCxz8sbTpXeEr8JHiDk6MCfCD9VMrpeo04RBmI76BY1mwdCvxQSJEn/NtkI9jjSaqjLCLcaFWD7mTuYefxrPplROQJPu+jcW1snnubntuux1nRxULC3Ge/IRWb4OYajLJcPXiVsdleSNV9avLE2xIPTFZf4cwHpRxZslKgHeyCLk+JoDlL0qneB4UWB/SZF8CHoYvidPJDzG5NHAEgfxSqbUq3DRvgVAPqR0YoQd/MQbPLBN6v1aY2zbqHJtTS1xidnnYIs3gJWVAurx6WjkNc9QYwdN22EPmYDVquW2tZgvi2kHRoJY+gEYylJRY0jOzqYmZUV9WOZeeb2AzgXnVjQubEm0NSYCC3BYjkiSmwpDWTcr/HvCQ+9iOI1OD56F7B6oowzXBP0Z/IClMd9Pb3vs9cRr6di/Vf+ijjUeHQxyKHiv2R2mGnPuR8d/gR538xmbc/RlEt2tycMD25SBAeFdtlUfB5Si8llTSd6YktZzZhkHiaIPBYAVEbrK3832TM7B7sGAa8R6Y8gctP6ccE/kFpSdnFHuENgRu2VZBDx6q8UmkArRLbrCvzmbn658EySkc=
+  matrix:
+  - TEST_SUITE=unit
+  - TEST_SUITE=convert
+script: ci/test.sh
+deploy:
+  provider: script
+  script: ci/deploy.sh
+  on:
+    repo: huji-nlp/ucca
+    tags: true
+
