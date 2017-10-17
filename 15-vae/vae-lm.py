@@ -89,8 +89,6 @@ b_sm_p = model.add_parameters((nwords_trg))  # Softmax bias
 
 def reparameterize(mu, logvar):
     # Get z by reparameterization.
-
-    # This is a d dimension gaussian.
     d = mu.dim()[0][0]
     eps = dy.random_normal(d)
     std = dy.exp(logvar * 0.5)
@@ -101,14 +99,6 @@ def reparameterize(mu, logvar):
 def mlp(x, W, V, b):
     # A mlp with only one hidden layer.
     return V * dy.tanh(W * x + b)
-
-
-def pow_n(x, n):
-    n_vector = np.full(x.dim()[0], n)
-    n_expr = dy.inputVector([2])
-    print(x.dim())
-    print(n_expr.dim())
-    return dy.pow(x, n_expr)
 
 
 def calc_loss(sent):
@@ -168,41 +158,6 @@ def calc_loss(sent):
     return kl_loss, softmax_loss
 
 
-def generate(sent):
-    dy.renew_cg()
-
-    # Transduce all batch elements with an LSTM
-    src = sent
-
-    # initialize the LSTM
-    init_state_src = LSTM_SRC_BUILDER.initial_state()
-
-    # get the output of the first LSTM
-    src_output = init_state_src.add_inputs([LOOKUP_SRC[x] for x in src])[-1].output()
-
-    # generate until a eos tag or max is reached
-    current_state = LSTM_TRG_BUILDER.initial_state().set_s([src_output, dy.tanh(src_output)])
-
-    prev_word = sos_trg
-    trg_sent = []
-    W_sm = dy.parameter(W_sm_p)
-    b_sm = dy.parameter(b_sm_p)
-
-    for i in range(MAX_SENT_SIZE):
-        # feed the previous word into the lstm, calculate the most likely word, add it to the sentence
-        current_state = current_state.add_input(LOOKUP_TRG[prev_word])
-        output_embedding = current_state.output()
-        s = dy.affine_transform([b_sm, W_sm, output_embedding])
-        probs = -dy.log_softmax(s).value()
-        next_word = np.argmax(probs)
-
-        if next_word == eos_trg:
-            break
-        prev_word = next_word
-        trg_sent.append(i2w_trg[next_word])
-    return trg_sent
-
-
 for ITER in range(100):
     # Perform training
     random.shuffle(train)
@@ -213,7 +168,7 @@ for ITER in range(100):
         total_loss = dy.esum([kl_loss, softmax_loss])
         train_loss += total_loss.value()
 
-        # Record the KL loss and reconstruction loss seperately help you monitor the training.
+        # Record the KL loss and reconstruction loss separately help you monitor the training.
         train_kl_loss += kl_loss.value()
         train_reconstruct_loss += softmax_loss.value()
 
@@ -222,28 +177,24 @@ for ITER in range(100):
         trainer.update()
         if (sent_id + 1) % 1000 == 0:
             print("--finished %r sentences" % (sent_id + 1))
+
     print("iter %r: train loss/word=%.4f, kl loss/word=%.4f, reconstruction loss/word=%.4f, ppl=%.4f, time=%.2fs" % (
         ITER, train_loss / train_words, train_kl_loss / train_words, train_reconstruct_loss / train_words,
         math.exp(train_loss / train_words), time.time() - start))
+
     # Evaluate on dev set
     dev_words, dev_loss, dev_kl_loss, dev_reconstruct_loss = 0, 0.0, 0.0, 0.0
     start = time.time()
     for sent_id, sent in enumerate(dev):
         kl_loss, softmax_loss = calc_loss(sent)
+
         dev_kl_loss += kl_loss.value()
         dev_reconstruct_loss += softmax_loss.value()
-        dev_loss += dev_kl_loss + dev_reconstruct_loss
+        dev_loss += kl_loss.value() + softmax_loss.value()
 
         dev_words += len(sent)
         trainer.update()
+
     print("iter %r: dev loss/word=%.4f, kl loss/word=%.4f, reconstruction loss/word=%.4f, ppl=%.4f, time=%.2fs" % (
         ITER, dev_loss / dev_words, dev_kl_loss / dev_words, dev_reconstruct_loss / dev_words,
         math.exp(dev_loss / dev_words), time.time() - start))
-
-# this is how you generate, can replace with desired sentenced to generate
-sentences = []
-for sent_id, sent in enumerate(test):
-    translated_sent = generate(sent[0])
-    sentences.append(translated_sent)
-for sent in sentences:
-    print(sent)
