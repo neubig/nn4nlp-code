@@ -212,6 +212,8 @@ for ITER in range(100):
         kl_loss, softmax_loss = calc_loss(sent)
         total_loss = dy.esum([kl_loss, softmax_loss])
         train_loss += total_loss.value()
+
+        # Record the KL loss and reconstruction loss seperately help you monitor the training.
         train_kl_loss += kl_loss.value()
         train_reconstruct_loss += softmax_loss.value()
 
@@ -228,10 +230,9 @@ for ITER in range(100):
     start = time.time()
     for sent_id, sent in enumerate(dev):
         kl_loss, softmax_loss = calc_loss(sent)
-        total_loss = dy.esum([kl_loss, softmax_loss])
-        dev_loss += total_loss.value()
         dev_kl_loss += kl_loss.value()
-        dev_reconstruct_loss += dev_reconstruct_loss.value()
+        dev_reconstruct_loss += softmax_loss.value()
+        dev_loss += dev_kl_loss + dev_reconstruct_loss
 
         dev_words += len(sent)
         trainer.update()
