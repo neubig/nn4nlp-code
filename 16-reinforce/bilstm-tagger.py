@@ -115,11 +115,11 @@ def calc_reinforce_loss(words, tags, delta):
     # Reward baseline for each word
     W_bl = dy.parameter(W_bl_p)
     b_bl = dy.parameter(b_bl_p)
-    r_b = [dy.affine_transform([b_bl, W_bl, x]) for x in word_reps]
+    r_b = [dy.affine_transform([b_bl, W_bl, dy.nobackprop(x)]) for x in word_reps]
 
     #we need to take the value in order to break the computation graph
     #as the reward portion is trained seperatley and not backpropogated through during the overall score
-    rewards_over_baseline = [(r - x).value() for x in r_b]
+    rewards_over_baseline = [(r - dy.nobackprop(x)) for x in r_b]
     #the scores for training the baseline
     baseline_scores = [dy.square(r - x) for x in r_b]
 
