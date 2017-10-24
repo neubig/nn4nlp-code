@@ -138,7 +138,7 @@ def calc_loss(sent):
     # now step through the output sentence
     all_losses = []
 
-    current_state = LSTM_TRG_BUILDER.initial_state().set_s([z, dy.tanh(src_output)])
+    current_state = LSTM_TRG_BUILDER.initial_state().set_s([z, dy.tanh(z)])
     prev_word = trg[0]
     W_sm = dy.parameter(W_sm_p)
     b_sm = dy.parameter(b_sm_p)
