@@ -53,10 +53,14 @@ LOOKUP_SRC = model.add_lookup_parameters((nwords_src, EMBED_SIZE))
 LOOKUP_TRG = model.add_lookup_parameters((nwords_trg, EMBED_SIZE))
 
 # Word-level BiLSTMs
-LSTM_SRC_FWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model)
-LSTM_SRC_BWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model)
-LSTM_TRG_FWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model)
-LSTM_TRG_BWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model)
+LSTM_SRC_FWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE/2, model)
+LSTM_SRC_BWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE/2, model)
+LSTM_TRG_FWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE/2, model)
+LSTM_TRG_BWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE/2, model)
+
+def encode_sents(look, fwd, bwd, sents):
+    embs = [[look[x] for x in sent] for sent in sents]
+    return [dy.concatenate([fwd.transduce(x)[-1], bwd.transduce(x)[-1]]) for x in embs]
 
 # Calculate loss for one mini-batch
 def calc_loss(sents):
@@ -67,13 +71,9 @@ def calc_loss(sents):
     trg_fwd = LSTM_TRG_FWD.initial_state()
     trg_bwd = LSTM_TRG_BWD.initial_state()
 
-    # Look up embeddings
-    src_embs = [[LOOKUP_SRC[x] for x in src] for src, trg in sents]
-    trg_embs = [[LOOKUP_SRC[x] for x in trg] for src, trg in sents]
-
-    # Transduce all batch elements with an LSTM 
-    src_reps = [dy.concatenate([src_fwd.transduce(x)[-1], src_bwd.transduce(x)[-1]]) for x in src_embs]
-    trg_reps = [dy.concatenate([trg_fwd.transduce(x)[-1], trg_bwd.transduce(x)[-1]]) for x in trg_embs]
+    # Encoding
+    src_reps = encode_sents(LOOKUP_SRC, src_fwd, src_bwd, [src for src, trg in sents])
+    trg_reps = encode_sents(LOOKUP_TRG, trg_fwd, trg_bwd, [trg for src, trg in sents])
 
     # Concatenate the sentence representations to a single matrix
     mtx_src = dy.concatenate_cols(src_reps)
@@ -93,17 +93,20 @@ def index_corpus(sents):
     # To take advantage of auto-batching, do several at a time
     for sid in range(0, len(sents), BATCH_SIZE):
         dy.renew_cg()
+
+        src_fwd = LSTM_SRC_FWD.initial_state()
+        src_bwd = LSTM_SRC_BWD.initial_state()
+        trg_fwd = LSTM_TRG_FWD.initial_state()
+        trg_bwd = LSTM_TRG_BWD.initial_state()
         
         # Set up the computation graph
-        exprs = []
-        for src, trg in sents[sid:min(sid+BATCH_SIZE,len(sents))]:
-            exprs.append((LSTM_SRC.transduce([LOOKUP_SRC[x] for x in src])[-1],
-                          LSTM_TRG.transduce([LOOKUP_TRG[y] for y in trg])[-1]))
+        src_exprs = encode_sents(LOOKUP_SRC, src_fwd, src_bwd, [src for src, trg in sents[sid:min(sid+BATCH_SIZE,len(sents))]])
+        trg_exprs = encode_sents(LOOKUP_TRG, trg_fwd, trg_bwd, [trg for src, trg in sents[sid:min(sid+BATCH_SIZE,len(sents))]])
 
         # Perform the forward pass to calculate everything at once
-        exprs[-1][1].forward()
+        trg_exprs[-1][1].forward()
 
-        for src_expr, trg_expr in exprs:
+        for src_expr, trg_expr in zip(src_exprs, trg_exprs):
             yield (src_expr.npvalue(), trg_expr.npvalue())
 
 # Perform retrieval, and return both scores and ranked order of candidates
