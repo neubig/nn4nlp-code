@@ -53,20 +53,31 @@ LOOKUP_SRC = model.add_lookup_parameters((nwords_src, EMBED_SIZE))
 LOOKUP_TRG = model.add_lookup_parameters((nwords_trg, EMBED_SIZE))
 
 # Word-level BiLSTMs
-LSTM_SRC = dy.BiRNNBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model, dy.LSTMBuilder)
-LSTM_TRG = dy.BiRNNBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model, dy.LSTMBuilder)
+LSTM_SRC_FWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model)
+LSTM_SRC_BWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model)
+LSTM_TRG_FWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model)
+LSTM_TRG_BWD = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model)
 
 # Calculate loss for one mini-batch
 def calc_loss(sents):
     dy.renew_cg()
 
-    # Transduce all batch elements with an LSTM
-    sent_reps = [(LSTM_SRC.transduce([LOOKUP_SRC[x] for x in src])[-1],
-                  LSTM_TRG.transduce([LOOKUP_TRG[y] for y in trg])[-1]) for src, trg in sents]
+    src_fwd = LSTM_SRC_FWD.initial_state()
+    src_bwd = LSTM_SRC_BWD.initial_state()
+    trg_fwd = LSTM_TRG_FWD.initial_state()
+    trg_bwd = LSTM_TRG_BWD.initial_state()
+
+    # Look up embeddings
+    src_embs = [[LOOKUP_SRC[x] for x in src] for src, trg in sents]
+    trg_embs = [[LOOKUP_SRC[x] for x in trg] for src, trg in sents]
+
+    # Transduce all batch elements with an LSTM 
+    src_reps = [dy.concatenate([src_fwd.transduce(x)[-1], src_bwd.transduce(x)[-1]]) for x in src_embs]
+    trg_reps = [dy.concatenate([trg_fwd.transduce(x)[-1], trg_bwd.transduce(x)[-1]]) for x in trg_embs]
 
     # Concatenate the sentence representations to a single matrix
-    mtx_src = dy.concatenate_cols([src for src, trg in sent_reps])
-    mtx_trg = dy.concatenate_cols([trg for src, trg in sent_reps])
+    mtx_src = dy.concatenate_cols(src_reps)
+    mtx_trg = dy.concatenate_cols(trg_reps)
 
     # Do matrix multiplication to get a matrix of dot product similarity scores
     sim_mtx = dy.transpose(mtx_src) * mtx_trg
