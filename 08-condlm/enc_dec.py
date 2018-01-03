@@ -111,11 +111,6 @@ def generate(sent):
     dy.renew_cg()
 
     # Transduce all batch elements with an LSTM
-    sent_reps = [LSTM_SRC.transduce([LOOKUP_SRC[x] for x in src])[-1] for src in sents]
-
-    dy.renew_cg()
-
-    # Transduce all batch elements with an LSTM
     src = sent
 
 
