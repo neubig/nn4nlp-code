@@ -92,7 +92,7 @@ def generate_sent():
 last_dev = 1e20
 best_dev = 1e20
 
-for ITER in range(100):
+for ITER in range(5):
   # Perform training
   random.shuffle(train)
   train_words, train_loss = 0, 0.0
@@ -104,8 +104,8 @@ for ITER in range(100):
     my_loss.backward()
     trainer.update()
     if (sent_id+1) % 5000 == 0:
-      print("--finished %r sentences" % (sent_id+1))
-  print("iter %r: train loss/word=%.4f, ppl=%.4f, time=%.2fs" % (ITER, train_loss/train_words, math.exp(train_loss/train_words), time.time()-start))
+      print("--finished %r sentences (word/sec=%.2f)" % (sent_id+1, train_words/(time.time()-start)))
+  print("iter %r: train loss/word=%.4f, ppl=%.4f (word/sec=%.2f)" % (ITER, train_loss/train_words, math.exp(train_loss/train_words), train_words/(time.time()-start)))
   # Evaluate on dev set
   dev_words, dev_loss = 0, 0.0
   start = time.time()
@@ -123,7 +123,7 @@ for ITER in range(100):
     model.save("model.txt")
     best_dev = dev_loss
   # Save the model
-  print("iter %r: dev loss/word=%.4f, ppl=%.4f, time=%.2fs" % (ITER, dev_loss/dev_words, math.exp(dev_loss/dev_words), time.time()-start))
+  print("iter %r: dev loss/word=%.4f, ppl=%.4f (word/sec=%.2f)" % (ITER, dev_loss/dev_words, math.exp(dev_loss/dev_words), dev_words/(time.time()-start)))
   # Generate a few sentences
   for _ in range(5):
     sent = generate_sent()
