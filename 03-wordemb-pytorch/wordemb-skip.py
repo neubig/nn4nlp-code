@@ -12,8 +12,12 @@ class Skip(torch.nn.Module):
 
         """ word embeddings """
         self.word_embedding = torch.nn.Embedding(nwords, emb_size)
+        # uniform initialization
+        torch.nn.init.uniform_(self.word_embedding.weight, -0.25, 0.25)
         """ context embeddings"""
         self.context_embedding = torch.nn.Embedding(nwords, emb_size)
+        # uniform initialization
+        torch.nn.init.uniform_(self.context_embedding.weight, -0.25, 0.25)
 
     def forward(self, word_pos, context_pos):
         embed_word = self.word_embedding(word_pos)    # 1 * emb_size

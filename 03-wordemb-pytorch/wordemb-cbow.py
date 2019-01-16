@@ -11,8 +11,11 @@ class CBoW(torch.nn.Module):
 
         """ layers """
         self.embedding = torch.nn.Embedding(nwords, emb_size)
+        # uniform initialization
+        torch.nn.init.uniform_(self.embedding.weight, -0.25, 0.25)
         """ projection layer for taking softmax over vocabulary words"""
         self.projection = torch.nn.Linear(emb_size, nwords)
+        torch.nn.init.uniform_(self.projection.weight, -0.25, 0.25)
 
     def forward(self, words):
         emb = self.embedding(words)
