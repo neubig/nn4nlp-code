@@ -158,13 +158,7 @@ def generate(sent):
     dy.renew_cg()
 
     # Transduce all batch elements with an LSTM
-    sent_reps = [LSTM_SRC.transduce([LOOKUP_SRC[x] for x in src])[-1] for src, trg in sents]
-
-    dy.renew_cg()
-
-    # Transduce all batch elements with an LSTM
-    src = sent[0]
-    trg = sent[1]
+    src = sent
 
 
     #initialize the LSTM
@@ -184,9 +178,9 @@ def generate(sent):
     for i in range(MAX_SENT_SIZE):
         #feed the previous word into the lstm, calculate the most likely word, add it to the sentence
         current_state = current_state.add_input(LOOKUP_TRG[prev_word])
-        output_embedding = hidden_state.output()
+        output_embedding = current_state.output()
         s = dy.affine_transform([b_sm, W_sm, output_embedding])
-        probs = -dy.log_softmax(s).value()
+        probs = (-dy.log_softmax(s)).value()
         next_word = np.argmax(probs)
 
         if next_word == eos_trg:
@@ -194,6 +188,7 @@ def generate(sent):
         prev_word = next_word
         trg_sent.append(i2w_trg[next_word])
     return trg_sent
+
 
 for ITER in range(100):
   # Perform training
@@ -216,6 +211,7 @@ for ITER in range(100):
   # Evaluate on dev set
   dev_words, dev_loss = 0, 0.0
   start = time.time()
+  print(generate(dev[0][0]))
   for sent_id, (start, length) in enumerate(dev_order):
     dev_batch = dev[start:start+length]
     my_loss, num_words = calc_loss(dev_batch)
