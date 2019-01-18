@@ -119,7 +119,7 @@ class DeepBiaffineAttentionDecoder(object):
 
         # NOTE: should transpose before calling `mst` method!
         s_arc, s_label = self.cal_scores(src_encodings)
-        s_arc_values = s_arc.npvalue().transpose()  # src_len, src_len
+        s_arc_values = dy.softmax(s_arc).npvalue().transpose()  # src_len, src_len
         s_label_values = np.asarray([x.npvalue() for x in s_label]).transpose((2, 1, 0))  # src_len, src_len, n_labels
 
         # weights = np.zeros((src_len + 1, src_len + 1))

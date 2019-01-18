@@ -27,7 +27,7 @@ def read(fname):
             sent = []
             labels = []
             heads = []
-            for i in range(num_tokens / 3):
+            for i in range(int(num_tokens / 3)):
                 sent.append(w2i[tokens[3 * i]])
                 labels.append(t2i[tokens[3 * i + 1]])
                 heads.append(int(tokens[3 * i + 2]))
