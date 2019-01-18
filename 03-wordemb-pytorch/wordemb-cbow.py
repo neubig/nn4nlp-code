@@ -5,9 +5,9 @@ import random
 import torch
 
 
-class CBoW(torch.nn.Module):
+class WordEmbCbow(torch.nn.Module):
     def __init__(self, nwords, emb_size):
-        super(CBoW, self).__init__()
+        super(WordEmbCbow, self).__init__()
 
         """ layers """
         self.embedding = torch.nn.Embedding(nwords, emb_size)
@@ -55,7 +55,7 @@ with open(labels_location, 'w') as labels_file:
         labels_file.write(i2w[i] + '\n')
 
 # initialize the model
-model = CBoW(nwords, EMB_SIZE)
+model = WordEmbCbow(nwords, EMB_SIZE)
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
 
@@ -68,27 +68,22 @@ if use_cuda:
 
 
 # Calculate the loss value for the entire sentence
-def calc_sent_loss(sent, inference=False):
+def calc_sent_loss(sent):
 
     # add padding to the sentence equal to the size of the window
     # as we need to predict the eos as well, the future window at that point is N past it
     padded_sent = [S] * N + sent + [S] * N
 
     # Step through the sentence
-    total_loss = 0
+    losses = []
     for i in range(N, len(sent) + N):
         # c is the context vector
         c = torch.tensor(padded_sent[i - N:i] + padded_sent[i + 1:i + N + 1]).type(type)
         t = torch.tensor([padded_sent[i]]).type(type) # This is the target vector
-        log_prob = model(c)
-        loss = criterion(log_prob, t)   # loss for predicting target from context vector
-        if not inference:
-            # Back prop while training only
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        total_loss += loss.data.cpu().item()
-    return total_loss
+        logits = model(c)
+        loss = criterion(logits, t)   # loss for predicting target from context vector
+        losses.append(loss)
+    return torch.stack(losses).sum()
 
 
 MAX_LEN = 100
@@ -101,8 +96,12 @@ for ITER in range(100):
     start = time.time()
     for sent_id, sent in enumerate(train):
         my_loss = calc_sent_loss(sent)
-        train_loss += my_loss
+        train_loss += my_loss.item()
         train_words += len(sent)
+        # Taking the step after calculating loss for all the words in the sentence
+        optimizer.zero_grad()
+        my_loss.backward()
+        optimizer.step()
         if (sent_id + 1) % 5000 == 0:
             print("--finished %r sentences" % (sent_id + 1))
     print("iter %r: train loss/word=%.4f, ppl=%.4f, time=%.2fs" % (
@@ -111,8 +110,8 @@ for ITER in range(100):
     dev_words, dev_loss = 0, 0.0
     start = time.time()
     for sent_id, sent in enumerate(dev):
-        my_loss = calc_sent_loss(sent, inference=True)
-        dev_loss += my_loss
+        my_loss = calc_sent_loss(sent)
+        dev_loss += my_loss.item()
         dev_words += len(sent)
     print("iter %r: dev loss/word=%.4f, ppl=%.4f, time=%.2fs" % (
     ITER, dev_loss / dev_words, math.exp(dev_loss / dev_words), time.time() - start))

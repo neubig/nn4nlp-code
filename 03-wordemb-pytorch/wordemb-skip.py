@@ -3,29 +3,23 @@ import math
 import time
 import random
 import torch
-import torch.nn.functional as F
 
 
-class Skip(torch.nn.Module):
+class WordEmbSkip(torch.nn.Module):
     def __init__(self, nwords, emb_size):
-        super(Skip, self).__init__()
+        super(WordEmbSkip, self).__init__()
 
         """ word embeddings """
         self.word_embedding = torch.nn.Embedding(nwords, emb_size)
         # uniform initialization
         torch.nn.init.uniform_(self.word_embedding.weight, -0.25, 0.25)
         """ context embeddings"""
-        self.context_embedding = torch.nn.Embedding(nwords, emb_size)
-        # uniform initialization
-        torch.nn.init.uniform_(self.context_embedding.weight, -0.25, 0.25)
+        self.context_embedding = torch.nn.Parameter(torch.randn(emb_size, nwords))
 
-    def forward(self, word_pos, context_pos):
-        embed_word = self.word_embedding(word_pos)    # 1 * emb_size
-        embed_context = self.context_embedding(context_pos)  # 1 * emb_size
-        score = torch.mul(embed_word, embed_context)
-        score = torch.sum(score, dim=1)
-        log_target = -1 * F.logsigmoid(score).squeeze()
-        return log_target
+    def forward(self, word):
+        embed_word = self.word_embedding(word)    # 1 * emb_size
+        out = torch.mm(embed_word, self.context_embedding)  # 1 * nwords
+        return out
 
 
 N = 2  # length of window on each side (so N=2 gives a total window size of 5, as in t-2 t-1 t t+1 t+2)
@@ -58,7 +52,8 @@ with open(labels_location, 'w') as labels_file:
         labels_file.write(i2w[i] + '\n')
 
 # initialize the model
-model = Skip(nwords, EMB_SIZE)
+model = WordEmbSkip(nwords, EMB_SIZE)
+criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
 
 type = torch.LongTensor
@@ -70,26 +65,22 @@ if use_cuda:
 
 
 # Calculate the loss value for the entire sentence
-def calc_sent_loss(sent, inference=False):
+def calc_sent_loss(sent):
     # add padding to the sentence equal to the size of the window
     # as we need to predict the eos as well, the future window at that point is N past it
 
     # Step through the sentence
-    total_loss = 0
+    losses = []
     for i, word in enumerate(sent):
-        c = torch.tensor([word]).type(type)     # This is tensor for center word
         for j in range(1, N + 1):
             for direction in [-1, 1]:
+                c = torch.tensor([word]).type(type)  # This is tensor for center word
                 context_id = sent[i + direction * j] if 0 <= i + direction * j < len(sent) else S
                 context = torch.tensor([context_id]).type(type)   # Tensor for context word
-                loss = model(c, context)
-                if not inference:
-                    # Back prop while training only
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-                total_loss += loss.data.cpu().item()
-    return total_loss
+                logits = model(c)
+                loss = criterion(logits, context)
+                losses.append(loss)
+    return torch.stack(losses).sum()
 
 
 MAX_LEN = 100
@@ -100,10 +91,15 @@ for ITER in range(100):
     random.shuffle(train)
     train_words, train_loss = 0, 0.0
     start = time.time()
+    model.train()
     for sent_id, sent in enumerate(train):
         my_loss = calc_sent_loss(sent)
-        train_loss += my_loss
+        train_loss += my_loss.item()
         train_words += len(sent)
+        # Back prop while training
+        optimizer.zero_grad()
+        my_loss.backward()
+        optimizer.step()
         if (sent_id + 1) % 5000 == 0:
             print("--finished %r sentences" % (sent_id + 1))
     print("iter %r: train loss/word=%.4f, ppl=%.4f, time=%.2fs" % (
@@ -111,9 +107,10 @@ for ITER in range(100):
     # Evaluate on dev set
     dev_words, dev_loss = 0, 0.0
     start = time.time()
+    model.eval()
     for sent_id, sent in enumerate(dev):
-        my_loss = calc_sent_loss(sent, inference=True)
-        dev_loss += my_loss
+        my_loss = calc_sent_loss(sent)
+        dev_loss += my_loss.item()
         dev_words += len(sent)
     print("iter %r: dev loss/word=%.4f, ppl=%.4f, time=%.2fs" % (
     ITER, dev_loss / dev_words, math.exp(dev_loss / dev_words), time.time() - start))
