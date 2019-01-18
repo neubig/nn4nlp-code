@@ -18,6 +18,8 @@ class BoW(torch.nn.Module):
 
         """ layers """
         self.embedding = nn.Embedding(nwords, ntags)
+        # initialize the weights with xavier uniform (Glorot, X. & Bengio, Y. (2010))
+        nn.init.xavier_uniform_(self.embedding.weight)
 
 
     def forward(self, words):
@@ -33,7 +35,11 @@ class CBoW(torch.nn.Module):
 
         """ layers """
         self.embedding = nn.Embedding(nwords, emb_size)
+        # initialize the weights with xavier uniform (Glorot, X. & Bengio, Y. (2010))
+        nn.init.xavier_uniform_(self.embedding.weight)
         self.linear = nn.Linear(emb_size, ntags) # bias is True by default
+        # initialize the weights with xavier uniform (Glorot, X. & Bengio, Y. (2010))
+        nn.init.xavier_uniform_(self.linear.weight)
 
     def forward(self, words):
         emb = self.embedding(words)
@@ -52,10 +58,20 @@ class DeepCBoW(torch.nn.Module):
 
         """ layers """
         self.embedding = nn.Embedding(nwords, emb_size)
+        # initialize the weights with xavier uniform (Glorot, X. & Bengio, Y. (2010))
+        nn.init.xavier_uniform_(self.embedding.weight)
+
+        # add nlayers number of layers
         self.linears = nn.ModuleList([
                 nn.Linear(emb_size if i == 0 else hid_size, hid_size) \
                 for i in range(nlayers)])
+        # initialize the weights with xavier uniform (Glorot, X. & Bengio, Y. (2010))
+        for i in range(nlayers):
+            nn.init.xavier_uniform_(self.linears[i].weight)
+
         self.output_layer = nn.Linear(hid_size, ntags)
+        # initialize the weights with xavier uniform (Glorot, X. & Bengio, Y. (2010))
+        nn.init.xavier_uniform_(self.output_layer.weight)
 
     def forward(self, words):
         emb = self.embedding(words)
