@@ -102,8 +102,9 @@ for ITER in range(100):
         optimizer.step()
         if (sent_id + 1) % 5000 == 0:
             print("--finished %r sentences" % (sent_id + 1))
+    train_ppl = float('inf') if train_loss / train_words > 709 else math.exp(train_loss / train_words)
     print("iter %r: train loss/word=%.4f, ppl=%.4f, time=%.2fs" % (
-    ITER, train_loss / train_words, math.exp(train_loss / train_words), time.time() - start))
+    ITER, train_loss / train_words, train_ppl, time.time() - start))
     # Evaluate on dev set
     dev_words, dev_loss = 0, 0.0
     start = time.time()
@@ -112,8 +113,9 @@ for ITER in range(100):
         my_loss = calc_sent_loss(sent)
         dev_loss += my_loss.item()
         dev_words += len(sent)
+    dev_ppl = float('inf') if dev_loss / dev_words > 709 else math.exp(dev_loss / dev_words)
     print("iter %r: dev loss/word=%.4f, ppl=%.4f, time=%.2fs" % (
-    ITER, dev_loss / dev_words, math.exp(dev_loss / dev_words), time.time() - start))
+    ITER, dev_loss / dev_words, dev_ppl, time.time() - start))
 
     print("saving embedding files")
     with open(embeddings_location, 'w') as embeddings_file:
