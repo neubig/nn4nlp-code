@@ -113,7 +113,6 @@ for ITER in range(5):
     my_loss = calc_sent_loss(sent)
     dev_loss += my_loss.value()
     dev_words += len(sent)
-    trainer.update()
   # Keep track of the development accuracy and reduce the learning rate if it got worse
   if last_dev < dev_loss:
     trainer.learning_rate /= 2
