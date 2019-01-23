@@ -48,10 +48,11 @@ def read_dataset(filename):
             words = words.split(" ")
             yield (words, [w2i[x] for x in words], int(tag))
 
+
 # Read in the data
-train = list(read_dataset("../data/classes/train.txt"))[:50]
+train = list(read_dataset("../data/classes/train.txt"))
 w2i = defaultdict(lambda: UNK, w2i)
-dev = list(read_dataset("../data/classes/test.txt"))[:10]
+dev = list(read_dataset("../data/classes/test.txt"))
 nwords = len(w2i)
 ntags = 5
 
@@ -104,6 +105,7 @@ def display_activations(words, activations):
         ngrams.append('[' + ', '.join(words_padded[act:act+WIN_SIZE]) + ']')
 
     return ngrams
+
 
 for ITER in range(10):
     # Perform training
