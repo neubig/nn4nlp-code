@@ -25,6 +25,9 @@ class WordEmbSkip(torch.nn.Module):
         embed_word = self.word_embedding(word_pos)    # 1 * emb_size
         embed_context = self.context_embedding(context_positions)  # n * emb_size
         score = torch.matmul(embed_context, embed_word.transpose(dim0=1, dim1=0)) #score = n * 1
+
+        # following is an example of something you can only do in a framework that allows
+        # dynamic graph creation 
         if negative_sample:
               score = -1*score
         obj = -1 * torch.sum(F.logsigmoid(score))
@@ -101,6 +104,9 @@ def calc_sent_loss(sent):
         neg_words_tensor = torch.tensor(neg_words).type(type)
         target_word_tensor = torch.tensor([word]).type(type)
 
+        #NOTE: technically, one should ensure that the neg words don't contain the 
+        #      the context (i.e. positive) words, but it is very unlikely, so we can ignore that
+
         pos_loss = model(target_word_tensor, pos_words_tensor)
         neg_loss = model(target_word_tensor, neg_words_tensor, negative_sample=True)
 
@@ -126,8 +132,11 @@ for ITER in range(100):
         optimizer.zero_grad()
         my_loss.backward()
         optimizer.step()
-        if (sent_id + 1) % 5000 == 0:
+        if (sent_id + 1) % 50 == 0:
             print("--finished %r sentences" % (sent_id + 1))
+            train_ppl = float('inf') if train_loss / train_words > 709 else math.exp(train_loss / train_words)
+            print("after sentences %r: train loss/word=%.4f, ppl=%.4f, time=%.2fs" % (
+			sent_id + 1, train_loss / train_words, train_ppl, time.time() - start))
     train_ppl = float('inf') if train_loss / train_words > 709 else math.exp(train_loss / train_words)
     print("iter %r: train loss/word=%.4f, ppl=%.4f, time=%.2fs" % (
     ITER, train_loss / train_words, train_ppl, time.time() - start))
