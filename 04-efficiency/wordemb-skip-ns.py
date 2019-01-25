@@ -50,7 +50,7 @@ with open(labels_location, 'w') as labels_file:
     labels_file.write(i2w[i] + '\n')
 
 # Start DyNet and define trainer
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.SimpleSGDTrainer(model, learning_rate=0.1)
 
 # Define the model

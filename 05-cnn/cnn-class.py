@@ -22,7 +22,7 @@ nwords = len(w2i)
 ntags = len(t2i)
 
 # Start DyNet and define trainer
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.AdamTrainer(model)
 
 # Define the model
@@ -38,19 +38,15 @@ b_sm = model.add_parameters((ntags))                      # Softmax bias
 
 def calc_scores(words):
     dy.renew_cg()
-    W_cnn_express = dy.parameter(W_cnn)
-    b_cnn_express = dy.parameter(b_cnn)
-    W_sm_express = dy.parameter(W_sm)
-    b_sm_express = dy.parameter(b_sm)
     if len(words) < WIN_SIZE:
       words += [0] * (WIN_SIZE-len(words))
 
     cnn_in = dy.concatenate([dy.lookup(W_emb, x) for x in words], d=1)
-    cnn_out = dy.conv2d_bias(cnn_in, W_cnn_express, b_cnn_express, stride=(1, 1), is_valid=False)
+    cnn_out = dy.conv2d_bias(cnn_in, W_cnn, b_cnn, stride=(1, 1), is_valid=False)
     pool_out = dy.max_dim(cnn_out, d=1)
     pool_out = dy.reshape(pool_out, (FILTER_SIZE,))
     pool_out = dy.rectify(pool_out)
-    return W_sm_express * pool_out + b_sm_express
+    return W_sm * pool_out + b_sm
 
 for ITER in range(100):
     # Perform training

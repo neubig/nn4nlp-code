@@ -30,27 +30,23 @@ i2w = {v: k for k, v in w2i.items()}
 nwords = len(w2i)
 
 # Start DyNet and define trainer
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.SimpleSGDTrainer(model, learning_rate=0.1)
 
 # Define the model
 W_emb = model.add_lookup_parameters((nwords, EMB_SIZE)) # Word weights at each position
-W_h_p = model.add_parameters((HID_SIZE, EMB_SIZE * N))    # Weights of the softmax
-b_h_p = model.add_parameters((HID_SIZE))                  # Weights of the softmax
-W_sm_p = model.add_parameters((nwords, HID_SIZE))         # Weights of the softmax
-b_sm_p = model.add_parameters((nwords))                   # Softmax bias
+W_h = model.add_parameters((HID_SIZE, EMB_SIZE * N))    # Weights of the softmax
+b_h = model.add_parameters((HID_SIZE))                  # Weights of the softmax
+W_sm = model.add_parameters((nwords, HID_SIZE))         # Weights of the softmax
+b_sm = model.add_parameters((nwords))                   # Softmax bias
 
 # A function to calculate scores for one value
 def calc_score_of_history(words):
   # Lookup the embeddings and concatenate them
   emb = dy.concatenate([W_emb[x] for x in words])
   # Create the hidden layer
-  W_h = dy.parameter(W_h_p)
-  b_h = dy.parameter(b_h_p)
   h = dy.tanh(dy.affine_transform([b_h, W_h, emb]))
   # Calculate the score and return
-  W_sm = dy.parameter(W_sm_p)
-  b_sm = dy.parameter(b_sm_p)
   return dy.affine_transform([b_sm, W_sm, h])
 
 # Calculate the loss value for the entire sentence
@@ -103,7 +99,6 @@ for ITER in range(100):
     my_loss = calc_sent_loss(sent)
     dev_loss += my_loss.value()
     dev_words += len(sent)
-    trainer.update()
   print("iter %r: dev loss/word=%.4f, ppl=%.4f, time=%.2fs" % (ITER, dev_loss/dev_words, math.exp(dev_loss/dev_words), time.time()-start))
   # Generate a few sentences
   for _ in range(5):

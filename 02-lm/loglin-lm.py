@@ -29,7 +29,7 @@ i2w = {v: k for k, v in w2i.items()}
 nwords = len(w2i)
 
 # Start DyNet and define trainer
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.SimpleSGDTrainer(model, learning_rate=0.1)
 
 # Define the model
@@ -39,7 +39,7 @@ b_sm = model.add_parameters((nwords))                # Softmax bias
 # A function to calculate scores for one value
 def calc_score_of_history(words):
   # Create a list of things to sum up with only the bias vector at first
-  score_vecs = [dy.parameter(b_sm)]
+  score_vecs = [b_sm]
   for word_id, lookup_param in zip(words, W_sm): 
     score_vecs.append(lookup_param[word_id])
   return dy.esum(score_vecs)
@@ -94,7 +94,6 @@ for ITER in range(100):
     my_loss = calc_sent_loss(sent)
     dev_loss += my_loss.value()
     dev_words += len(sent)
-    trainer.update()
   print("iter %r: dev loss/word=%.4f, ppl=%.4f, time=%.2fs" % (ITER, dev_loss/dev_words, math.exp(dev_loss/dev_words), time.time()-start))
   # Generate a few sentences
   for _ in range(5):

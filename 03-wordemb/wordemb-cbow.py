@@ -32,12 +32,12 @@ with open(labels_location, 'w') as labels_file:
     labels_file.write(i2w[i] + '\n')
 
 # Start DyNet and define trainer
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.SimpleSGDTrainer(model, learning_rate=0.1)
 
 # Define the model
 W_c_p = model.add_lookup_parameters((nwords, EMB_SIZE)) # Word weights at each position
-W_w_p = model.add_parameters((nwords, EMB_SIZE))         # Weights of the softmax
+W_w = model.add_parameters((nwords, EMB_SIZE))         # Weights of the softmax
 
 # Calculate the loss value for the entire sentence
 def calc_sent_loss(sent):
@@ -48,8 +48,6 @@ def calc_sent_loss(sent):
   #as we need to predict the eos as well, the future window at that point is N past it 
   padded_sent = [S] * N + sent + [S] * N
   padded_emb = [W_c_p[x] for x in padded_sent]
-
-  W_w = dy.parameter(W_w_p)
 
   # Step through the sentence
   all_losses = [] 
@@ -88,7 +86,7 @@ for ITER in range(100):
 
   print("saving embedding files")
   with open(embeddings_location, 'w') as embeddings_file:
-    W_w_np = W_w_p.as_array()
+    W_w_a = W_w.as_array()
     for i in range(nwords):
-      ith_embedding = '\t'.join(map(str, W_w_np[i]))
+      ith_embedding = '\t'.join(map(str, W_w_a[i]))
       embeddings_file.write(ith_embedding + '\n')
