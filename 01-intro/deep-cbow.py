@@ -22,7 +22,7 @@ nwords = len(w2i)
 ntags = len(t2i)
 
 # Start DyNet and define trainer
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.AdamTrainer(model)
 
 # Define the model
@@ -40,8 +40,8 @@ def calc_scores(words):
   dy.renew_cg()
   h = dy.esum([dy.lookup(W_emb, x) for x in words])
   for W_h_i, b_h_i in zip(W_h, b_h):
-    h = dy.tanh( dy.parameter(W_h_i) * h + dy.parameter(b_h_i) )
-  return dy.parameter(W_sm) * h + dy.parameter(b_sm)
+    h = dy.tanh( W_h_i * h + b_h_i )
+  return W_sm * h + b_sm
 
 for ITER in range(100):
   # Perform training
