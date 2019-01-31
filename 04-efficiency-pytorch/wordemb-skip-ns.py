@@ -12,11 +12,11 @@ class WordEmbSkip(torch.nn.Module):
         super(WordEmbSkip, self).__init__()
 
         """ word embeddings """
-        self.word_embedding = torch.nn.Embedding(nwords, emb_size)
+        self.word_embedding = torch.nn.Embedding(nwords, emb_size, sparse=True)
         # initialize the weights with xavier uniform (Glorot, X. & Bengio, Y. (2010))
         torch.nn.init.xavier_uniform_(self.word_embedding.weight)
         """ context embeddings"""
-        self.context_embedding = torch.nn.Embedding(nwords, emb_size)
+        self.context_embedding = torch.nn.Embedding(nwords, emb_size, sparse=True)
         # initialize the weights with xavier uniform (Glorot, X. & Bengio, Y. (2010))
         torch.nn.init.xavier_uniform_(self.context_embedding.weight)
 
