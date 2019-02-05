@@ -25,7 +25,7 @@ nwords = len(w2i)
 ntags = len(t2i)
 
 # Start DyNet and defin trainer
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.AdamTrainer(model)
 
 # Define the model
@@ -46,9 +46,7 @@ def calc_scores(words):
     fwd_embs = fwd_init.transduce(word_embs)
     bwd_init = bwdLSTM.initial_state()
     bwd_embs = bwd_init.transduce(reversed(word_embs))
-    W_sm_exp = dy.parameter(W_sm)
-    b_sm_exp = dy.parameter(b_sm)
-    return W_sm_exp * dy.concatenate([fwd_embs[-1], bwd_embs[-1]]) + b_sm_exp
+    return W_sm * dy.concatenate([fwd_embs[-1], bwd_embs[-1]]) + b_sm
 
 
 for ITER in range(100):

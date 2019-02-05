@@ -41,19 +41,18 @@ with open(labels_location, 'w') as labels_file:
     labels_file.write(i2w[i] + '\n')
 
 # Start DyNet and define trainer
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.SimpleSGDTrainer(model, learning_rate=0.1)
 
 # Define the model
 W_w_p = model.add_lookup_parameters((nwords, EMB_SIZE)) # Word weights
-W_c_p = model.add_parameters((nbits, EMB_SIZE)) # Binary prediction weights
+W_c = model.add_parameters((nbits, EMB_SIZE)) # Binary prediction weights
 
 # Calculate the loss value for the entire sentence
 def calc_sent_loss(sent):
   # Create a computation graph
   dy.renew_cg()
 
-  W_c = dy.parameter(W_c_p)
   
   # Get embeddings for the sentence
   emb = [W_w_p[x] for x in sent]

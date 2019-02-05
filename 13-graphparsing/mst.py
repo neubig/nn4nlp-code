@@ -7,6 +7,9 @@ def mst(scores):
     Chu-Liu-Edmonds' algorithm for finding minimum spanning arborescence in graphs.
     Calculates the arborescence with node 0 as root.
     Source: https://github.com/chantera/biaffineparser/blob/master/utils.py
+    This is based off of the heuristics from the Stanford CoNLL 2017 parser, found here:
+
+    https://github.com/tdozat/Parser-v2/blob/master/parser/misc/mst.py
 
     :param scores: `scores[i][j]` is the weight of edge from node `i` to node `j`
     :returns an array containing the head node (node with edge pointing to current node) for each node,

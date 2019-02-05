@@ -10,7 +10,7 @@ import numpy as np
 # Create the model
 model = dy.ParameterCollection()
 trainer = dy.SimpleSGDTrainer(model)
-W_p = model.add_parameters((100,100))
+W = model.add_parameters((100,100))
 
 # Create the "training data"
 x_vecs = []
@@ -22,7 +22,6 @@ for i in range(10):
 # Do the processing
 for my_iter in range(1000):
   dy.renew_cg()
-  W = dy.parameter(W_p)
   total = 0
   for x in x_vecs:
     for y in y_vecs:

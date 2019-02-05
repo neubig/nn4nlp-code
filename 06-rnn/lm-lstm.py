@@ -38,7 +38,7 @@ S = w2i["<s>"]
 assert (nwords == len(w2i))
 
 # DyNet Starts
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.AdamTrainer(model)
 
 # Lookup parameters for word embeddings
@@ -50,16 +50,14 @@ WORDS_LOOKUP = model.add_lookup_parameters((nwords, EMBED_SIZE))
 RNN = dy.LSTMBuilder(1, EMBED_SIZE, HIDDEN_SIZE, model)
 
 # Softmax weights/biases on top of LSTM outputs
-W_sm = model.add_parameters((nwords, HIDDEN_SIZE))
-b_sm = model.add_parameters(nwords)
+W_exp = model.add_parameters((nwords, HIDDEN_SIZE))
+b_exp = model.add_parameters(nwords)
 
 
 # Build the language model graph
 def calc_lm_loss(sent):
     dy.renew_cg()
     # parameters -> expressions
-    W_exp = dy.parameter(W_sm)
-    b_exp = dy.parameter(b_sm)
 
     # initialize the RNN
     f_init = RNN.initial_state()
@@ -85,7 +83,7 @@ def calc_lm_loss(sent):
 
 
 # Sort training sentences in descending order and count minibatches
-train_order = range(len(train))
+train_order = list(range(len(train)))
 
 print("startup time: %r" % (time.time() - start))
 # Perform training

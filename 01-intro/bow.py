@@ -22,22 +22,21 @@ nwords = len(w2i)
 ntags = len(t2i)
 
 # Start DyNet and define trainer
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.AdamTrainer(model)
 
 # Define the model
-W_sm = model.add_lookup_parameters((nwords, ntags)) # Word weights
-b_sm = model.add_parameters((ntags))                # Softmax bias
+W = model.add_lookup_parameters((nwords, ntags)) # Word weights
+b = model.add_parameters((ntags))                # Softmax bias
 
 # A function to calculate scores for one value
 def calc_scores(words):
   # Create a computation graph, and add parameters
   dy.renew_cg()
-  b_sm_exp = dy.parameter(b_sm)
   # Take the sum of all the embedding vectors for each word
-  score = dy.esum([dy.lookup(W_sm, x) for x in words])
+  score = dy.esum([dy.lookup(W, x) for x in words])
   # Add the bias vector and return
-  return score + b_sm_exp
+  return score + b
 
 for ITER in range(100):
   # Perform training

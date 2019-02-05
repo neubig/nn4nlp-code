@@ -110,12 +110,6 @@ def calc_loss(sent):
 def generate(sent):
     dy.renew_cg()
 
-    # Transduce all batch elements with an LSTM
-    sent_reps = [LSTM_SRC.transduce([LOOKUP_SRC[x] for x in src])[-1] for src in sents]
-
-    dy.renew_cg()
-
-    # Transduce all batch elements with an LSTM
     src = sent
 
 
@@ -136,9 +130,9 @@ def generate(sent):
     for i in range(MAX_SENT_SIZE):
         #feed the previous word into the lstm, calculate the most likely word, add it to the sentence
         current_state = current_state.add_input(LOOKUP_TRG[prev_word])
-        output_embedding = hidden_state.output()
+        output_embedding = current_state.output()
         s = dy.affine_transform([b_sm, W_sm, output_embedding])
-        probs = -dy.log_softmax(s).value()
+        probs = (-dy.log_softmax(s)).value()
         next_word = np.argmax(probs)
 
         if next_word == eos_trg:

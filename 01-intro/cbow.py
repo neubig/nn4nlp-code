@@ -22,7 +22,7 @@ nwords = len(w2i)
 ntags = len(t2i)
 
 # Start DyNet and define trainer
-model = dy.Model()
+model = dy.ParameterCollection()
 trainer = dy.AdamTrainer(model)
 
 # Define the model
@@ -35,9 +35,7 @@ b_sm = model.add_parameters((ntags))                      # Softmax bias
 def calc_scores(words):
   dy.renew_cg()
   cbow = dy.esum([dy.lookup(W_emb, x) for x in words])
-  W_sm_exp = dy.parameter(W_sm)
-  b_sm_exp = dy.parameter(b_sm)
-  return W_sm_exp * cbow + b_sm_exp
+  return W_sm * cbow + b_sm
 
 for ITER in range(100):
   # Perform training
