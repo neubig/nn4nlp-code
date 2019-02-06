@@ -29,7 +29,7 @@ class CNNclass(torch.nn.Module):
         # Do max pooling
         h = h.max(dim=2)[0]                         # 1 x num_filters
         h = self.relu(h)
-        features = h.squeeze()
+        features = h.squeeze(0)
         out = self.projection_layer(h)              # size(out) = 1 x ntags
         if return_activations:
             return out, activations.data.cpu().numpy(), features.data.cpu().numpy()
