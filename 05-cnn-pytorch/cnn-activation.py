@@ -25,7 +25,7 @@ class CNNclass(torch.nn.Module):
         emb = self.embedding(words)                 # nwords x emb_size
         emb = emb.unsqueeze(0).permute(0, 2, 1)     # 1 x emb_size x nwords
         h = self.conv_1d(emb)                       # 1 x num_filters x nwords
-        activations = h.squeeze().max(dim=1)[1]     # argmax along length of the sentence
+        activations = h.squeeze(0).max(dim=1)[1]     # argmax along length of the sentence
         # Do max pooling
         h = h.max(dim=2)[0]                         # 1 x num_filters
         h = self.relu(h)
@@ -147,3 +147,4 @@ for ITER in range(10):
 
 for words, wids, tag in dev:
     calc_predict_and_activations(wids, tag, words)
+    input()
