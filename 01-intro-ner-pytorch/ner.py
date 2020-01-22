@@ -47,8 +47,8 @@ def load_data(file_path: Union[Path, str]) -> List[Example]:
 
 def build_vocab(train_set: List[Example]) -> Vocab:
     """
-    create index (dictionary) for word types in the training set.
-    Singletons will be ignored
+    Create index (dictionary) for word types and ner tags in the training set.
+    Singletons (words with that only appears once) will be ignored
     """
 
     all_words = itertools.chain.from_iterable(
@@ -181,12 +181,36 @@ class NerModel(nn.Module):
                 final prediction layer with shape (batch_size, max_sequence_len, tag_num).
         """
 
-        # torch.LongTensor: (batch_size, max_sequence_len)
-        word_ids = to_input_tensor(sentences, self.vocab.word_to_id).to(self.device)
+        # Convert the input batch of tokenized sentences to a matrix (tensor) of word indices.
+        # The shape and data type of the matrix is:
+        # torch.LongTensor: (batch_size, max_sequence_len),
+        # where `max_sequence_len` denotes the length of the longest sentence in the batch.
+        # For sentences shorter than `max_sequence_len`, we right-pad them using the `pad_index` (e.g., zero)
+        # We also replace singleton word types with a special `<unk>` token to prevent over fitting.
+        # Finally, we move the newly created tensor to the device the model resides on (CPU or indexed GPU card)
 
+        # Side Note:
+        #   (1) You may also represent the tensor by swapping the dimensions: (max_sequence_len, batch_size),
+        #   making `batch_size` the second dimension. However, it is commonly the case to use the first dimension
+        #   to represent batch size.
+        #   (2) Somehow, in PyTorch, many functions use the second dimension to represent batch size by default
+        #   (e.g., the built-in LSTM). This is due to certain technical reasons (some computations might be faster if
+        #   the first dimension is not batch size). However, for clarity reasons I would not recommend this.
+        word_ids = to_input_tensor(
+            sentences, self.vocab.word_to_id,
+            pad_index=self.vocab.word_to_id['<pad>'], unk_index=self.vocab.word_to_id['<unk>']
+        ).to(self.device)
+
+        # Next, use the tensor of word indices to query the word embedding layer, and
+        # get the resulting word embeddings for each token in `word_ids`.
         # torch.FloatTensor: (batch_size, max_sequence_len, embedding_size)
         word_embeddings = self.embedding(word_ids)
 
+        # When running LSTMs over batched inputs, we need to take care of the padding entries,
+        # as they are not supposed to be involved in the computation. Fortunately, Pytorch provides
+        # a special function to mark the proper length for each sequence (i.e., the sequence of embeddings
+        # of a sentence) in the batch. The BiLSTM module will then ignore the padded indices using the
+        # length information.
         # type: PackedSequence
         packed_word_embeddings = pack_padded_sequence(
             word_embeddings,
@@ -199,6 +223,10 @@ class NerModel(nn.Module):
         source_encodings, (last_state, last_cell) = self.bi_lstm(packed_word_embeddings)
         source_encodings, _ = pad_packed_sequence(source_encodings, batch_first=True)
 
+        # We use a simple linear layer to transform the LSTM hidden states to a categorical distribution
+        # over target NER labels. Note that the following quantity is the ``logits'' before the Softmax
+        # layer. Softmax will be implicitly applied by `nn.CrossEntropyLoss` when computing the loss value
+        # in below
         # (batch_size, max_sequence_len, tag_num)
         tag_logits = self.predictor(source_encodings)
 
@@ -207,10 +235,22 @@ class NerModel(nn.Module):
         }
 
         if targets is not None:
+            # We convert the target tag sequences in the batch to a Pytorch tensor of their indices
+            # Note that we use `-1` to as the padding index
             # torch.LongTensor: (batch_size, max_sequence_len)
             target_tag_ids = to_input_tensor(targets, self.vocab.ner_tag_to_id, pad_index=-1).to(self.device)
+
+            # the number of all possible tags
             tag_num = len(self.vocab.ner_tag_to_id)
-            # scalar of the average of the log-likelihood of predicting the gold-standard tag at each position, for each sentence in the batch
+
+            # scalar of the average of the log-likelihood of predicting the gold-standard tag at each position,
+            # for each sentence in the batch.
+            # This corresponds to:
+            #   (1) apply Softmax to the `tag_logits`, generating the categorical distribution
+            # over NER labels for each word;
+            #   (2) Grab the probabilities of the gold-standard NER label for each word, and compute their average
+            #       as the loss value.
+            # Note: `nn.CrossEntropyLoss` will ignore the padded indices specified by `ignore_index`
             loss = nn.CrossEntropyLoss(ignore_index=-1)(
                 tag_logits.view(-1, tag_num),  # (batch_size * max_sequence_len, tag_num)
                 target_tag_ids.view(-1)  # (batch_size * max_sequence_len)
@@ -230,11 +270,24 @@ class NerModel(nn.Module):
         Output:
             predicted_tags: a list of predicted tag sequences, one for each input sentence in the batch
         """
+
+        # We do not need to perform back-propagation in inference, so we use the context manager `torch.no_grad()`.
+        # This will avoid book-keeping all necessary information required by back-propagation during forward
+        # computation, and saves memory and significantly improves speed.
         with torch.no_grad():
+            # The best practice to write a `predict()` function for testing is to reuse
+            # as much code for training as possible. The `forward()` function should compute
+            # the network's outputs used in both training and testing. In our case, it is the
+            # ``logits'' for computing the distribution of NER labels for each word.
             encoding_dict = self.forward(sentences)
+
             # (batch_size, max_sequence_len, tag_num)
             tag_logits = encoding_dict['tag_logits']
-            # perform greedy decoding
+
+            # Perform greedy decoding to compute the most likely NER label for each word.
+            # The code snnippt in the following for loop is cpu intensive and uses lots of
+            # random tensors indexing. It is usually a good idea of move the tensor to CPU.
+            # (and convert the tensor to a `numpy.ndarray` if you like)
             # (batch_size, max_sequence_len)
             predicted_tags_ids = torch.argmax(tag_logits, dim=-1).cpu().numpy()
 
@@ -242,7 +295,9 @@ class NerModel(nn.Module):
             for e_id, sentence in enumerate(sentences):
                 tag_sequence = []
                 for token_pos, token in enumerate(sentence):
+                    # Grab the index of the NER label with the highest probability
                     pred_tag_id = predicted_tags_ids[e_id, token_pos]
+                    # Get the original NER tag
                     pred_tag = self.vocab.id_to_ner_tag[pred_tag_id]
 
                     tag_sequence.append(pred_tag)
@@ -256,6 +311,8 @@ class NerModel(nn.Module):
         if isinstance(model_path, Path):
             model_path = str(model_path)
 
+        # `self.state_dict()` returns a dictionary consisting of all model parameters
+        # `config` records the hyper-parameters (embedding_size, hidden_size, etc.)
         model_state = {
             'state_dict': self.state_dict(),
             'config':  self.config
@@ -310,10 +367,13 @@ def evaluate(
     """Evaluate a model over a dataset"""
 
     was_training = model.training
+    # Set the model to evaluation mode, this will impact behaviour of
+    # some stochastic operations like `Dropout`
     model = model.eval()
 
     predict_results = []
     reference = []
+
     for batch in batch_iter(data_set, batch_size=batch_size):
         sentences = [e.sentence for e in batch]
         ref_tag_sequences = [e.ner_tags for e in batch]
@@ -326,6 +386,8 @@ def evaluate(
     if was_training:
         model = model.train()
 
+    # The following code snippet dumps the prediction results to CoNLL evaluation
+    # format and call the official evaluation script for evaluation.
     output_file = output_file or Path('_tmp_prediction.txt')
 
     with output_file.open('w') as f:
@@ -344,7 +406,7 @@ def evaluate(
 
     eval_output = os.popen(f'perl conlleval < {output_file}').read()
     print(eval_output)
-    accuracy = re.search('accuracy: +(\d+\.\d+)\%', eval_output).group(1)
+    accuracy = re.search(r'accuracy: +(\d+\.\d+)\%', eval_output).group(1)
     accuracy = float(accuracy)
 
     eval_result = {
@@ -416,6 +478,8 @@ def main():
     train_parser.set_defaults(action='train')
     train_parser.add_argument('--train-set', type=Path, required=True, help='Path to the training set')
     train_parser.add_argument('--dev-set', type=Path, required=True, help='Path to the development set for validation')
+    train_parser.add_argument('--embedding-size', type=int, default=256, help='Size of the embedding vectors.')
+    train_parser.add_argument('--hidden-size', type=int, default=256, help='Size of the LSTM hidden layer.')
     train_parser.add_argument('--batch-size', type=int, default=32, help='Training batch size')
     train_parser.add_argument('--max-epoch', type=int, default=32, help='Maximum number of training epoches')
     train_parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for Adam')
