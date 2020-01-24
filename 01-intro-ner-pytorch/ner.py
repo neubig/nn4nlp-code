@@ -169,6 +169,14 @@ class NerModel(nn.Module):
 
     def forward(self, sentences: List[List[str]], targets: List[List[str]] = None) -> Dict[str, torch.Tensor]:
         """
+        Perform the forward pass, given a batched list of sentences, compute the neural network output,
+        which is the distribution of NER tags for each word in input sentences.
+
+        If the gold-standard NER labels (`targets`) is given, the forward function will also return the
+        loss value, which is the negative log-likelihood of predicting the gold NER labels.
+
+        All outputs are packaged in a Python dictionary.
+
         Args:
             sentences: a mini-batch, consisting of a list of tokenized sentences
             targets: Optional, the list of gold NER tags for each input sentence in the mini-batch
@@ -181,7 +189,7 @@ class NerModel(nn.Module):
                 final prediction layer with shape (batch_size, max_sequence_len, tag_num).
         """
 
-        # Convert the input batch of tokenized sentences to a matrix (tensor) of word indices.
+        # First, we convert the input batch of tokenized sentences to a matrix (tensor) of word indices.
         # The shape and data type of the matrix is:
         # torch.LongTensor: (batch_size, max_sequence_len),
         # where `max_sequence_len` denotes the length of the longest sentence in the batch.
@@ -419,31 +427,44 @@ def evaluate(
 def train(args):
     """training procedure"""
 
+    # load the training and development set
     train_set = load_data(args.train_set)
     dev_set = load_data(args.dev_set)
+    # build the vocabulary, create dictionaries that map words and NER tags to indices (and vice versa)
     vocab = build_vocab(train_set)
-    model = NerModel(embedding_size=256, hidden_size=256, vocab=vocab)
+    # Build the model
+    model = NerModel(embedding_size=args.embedding_size, hidden_size=args.hidden_size, vocab=vocab)
 
     if args.cuda:
+        # Move model to GPU if `--cuda` flag is specified
         model = model.cuda()
-        model = model.train()
 
+    # Set the model to train mode, this is important since some modules behave differently
+    # in training and testing (e.g., Dropout)
+    model = model.train()
+
+    # Create an Adam optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     running_dev_accuracy = 0.
 
     for epoch_id in range(args.max_epoch):
         train_batch_iter = batch_iter(train_set, batch_size=args.batch_size, shuffle=True)
-        # epoch_batch_num = np.ceil(len(train_set) / args.batch_size)
+        # Iterate over mini-batches for the current epoch
         for batch_id, batch in enumerate(train_batch_iter):
+            # Clear the gradients of parameters
             optimizer.zero_grad()
 
             sentences = [e.sentence for e in batch]
             tag_sequences = [e.ner_tags for e in batch]
 
+            # Perform forward pass to get neural network outputs
             return_dict = model(sentences, tag_sequences)
-
+            # Grab the loss tensor
             loss = return_dict['loss']
+            # Call `backward()` on `loss` for back-propagation to compute
+            # gradients w.r.t. model parameters
             loss.backward()
+            # Perform one step of parameter update using the newly-computed gradients
             optimizer.step()
 
             print(f'Epoch {epoch_id}, batch {batch_id}, loss={loss.item()}')
@@ -452,6 +473,7 @@ def train(args):
         dev_accuracy = eval_result["accuracy"]
 
         print(f'Epoch {epoch_id} dev. accuracy={dev_accuracy}')
+        # We save the model if the dev. accuracy is better than previous epochs
         if dev_accuracy > running_dev_accuracy:
             model.save(args.model_save_path)
 
