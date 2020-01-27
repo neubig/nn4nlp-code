@@ -152,7 +152,8 @@ class NerModel(nn.Module):
 
         self.embedding = nn.Embedding(len(vocab.word_to_id), embedding_size)
         self.bi_lstm = nn.LSTM(
-            input_size=embedding_size, hidden_size=hidden_size, batch_first=True, bidirectional=True
+            input_size=embedding_size, hidden_size=hidden_size,
+            batch_first=True, bidirectional=True
         )
         self.predictor = nn.Linear(hidden_size * 2, len(vocab.ner_tag_to_id))
 
@@ -160,7 +161,7 @@ class NerModel(nn.Module):
         self.config = {
             'embedding_size': embedding_size,
             'hidden_size': hidden_size,
-            'token_to_id_map': vocab
+            'vocab': vocab
         }
 
     @property
